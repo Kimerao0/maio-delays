@@ -95,9 +95,9 @@ events, in UI order:
 
 | Id         | Etichetta     | Codice    | Occurs when           |
 | ---------- | ------------- | --------- | --------------------- |
-| `win`      | non vince     | `no 1`    | the team won          |
+| `win`      | non vince     | `no V`    | the team won          |
 | `draw`     | non pareggia  | `no X`    | the match was drawn   |
-| `loss`     | non perde     | `no 2`    | the team lost         |
+| `loss`     | non perde     | `no S`    | the team lost         |
 | `scores`   | non segna     | `no GF`   | the team scored ≥ 1   |
 | `concedes` | non subisce   | `no GS`   | the team conceded ≥ 1 |
 | `btts`     | no goal       | `no GG`   | both teams scored     |

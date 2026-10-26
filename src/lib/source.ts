@@ -4,7 +4,8 @@ import { currentSeasonCode } from '@/lib/season'
 export type Snapshot = {
   matches: Match[]
   fixtures: Fixture[]
-  fetchedAt: Date
+  // When the bodies were downloaded, not when this request rendered; null when nothing was.
+  fetchedAt: Date | null
   failed: string[]
 }
 
@@ -14,26 +15,55 @@ const HOST = 'https://football-data.co.uk'
 // Three hours, per the spec.
 const REVALIDATE = 10800
 
+// Without this a hung host holds the boundary open for as long as it likes, and the table never
+// gets past its skeleton; a named failure is better than a permanent spinner.
+const TIMEOUT = 15_000
+
 export const FIXTURES_URL = `${HOST}/fixtures.csv`
 
 export function resultsUrl(div: string, season: string): string {
   return `${HOST}/mmz4281/${season}/${div}.csv`
 }
 
-async function fetchText(url: string): Promise<string> {
+// The cache stores the upstream headers verbatim and replays them on a hit, so `date` is the moment
+// the origin served this body — which for a cached entry is hours before the current request.
+function fetchedAtOf(response: Response): Date | null {
+  const header = response.headers.get('date')
+  if (!header) return null
+  const at = new Date(header)
+  if (Number.isNaN(at.getTime())) return null
+  return at
+}
+
+type Fetched = { text: string; fetchedAt: Date | null }
+
+async function fetchText(url: string): Promise<Fetched> {
   // `force-cache` is what opts this into the cache at all — Next 16 caching is opt-in, and the page
   // reads searchParams, so without it every visitor would re-download all 21 CSVs. `revalidate`
   // only sets the lifetime of an already-cached entry.
-  const response = await fetch(url, { cache: 'force-cache', next: { revalidate: REVALIDATE } })
+  const response = await fetch(url, {
+    cache: 'force-cache',
+    next: { revalidate: REVALIDATE },
+    signal: AbortSignal.timeout(TIMEOUT),
+  })
   if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-  return response.text()
+  return { text: await response.text(), fetchedAt: fetchedAtOf(response) }
 }
 
-async function loadDivision(div: string, season: string): Promise<Match[]> {
-  const matches = parseMatches(await fetchText(resultsUrl(div, season)))
+type Division = { matches: Match[]; fetchedAt: Date | null }
+
+async function loadDivision(div: string, season: string): Promise<Division> {
+  const { text, fetchedAt } = await fetchText(resultsUrl(div, season))
+  const matches = parseMatches(text)
   // A truncated or empty body parses as zero matches: a failure, not a league that played none.
   if (matches.length === 0) throw new Error(`${div} returned no matches`)
-  return matches
+  return { matches, fetchedAt }
+}
+
+// The set is only as fresh as its oldest member: naming the newest would overstate the rest.
+function earliest(times: Date[]): Date | null {
+  if (times.length === 0) return null
+  return new Date(Math.min(...times.map((at) => at.getTime())))
 }
 
 export async function loadSnapshot(divs: string[], now = new Date()): Promise<Snapshot> {
@@ -41,23 +71,26 @@ export async function loadSnapshot(divs: string[], now = new Date()): Promise<Sn
   const divisions = divs.map((div) => loadDivision(div, season))
   // Handled where it is started, so the rejection is never unhandled while the divisions settle.
   const fixtures = fetchText(FIXTURES_URL)
-    .then(parseFixtures)
+    .then(({ text, fetchedAt }) => ({ fixtures: parseFixtures(text), fetchedAt }))
     .catch(() => null)
 
   const results = await Promise.allSettled(divisions)
   const matches: Match[] = []
   const failed: string[] = []
+  const times: Date[] = []
   results.forEach((result, index) => {
     if (result.status === 'rejected') {
       failed.push(divs[index])
       return
     }
-    matches.push(...result.value)
+    matches.push(...result.value.matches)
+    if (result.value.fetchedAt) times.push(result.value.fetchedAt)
   })
 
   const loaded = await fixtures
   if (!loaded) failed.push('fixtures')
-  return { matches, fixtures: loaded ?? [], fetchedAt: now, failed }
+  if (loaded?.fetchedAt) times.push(loaded.fetchedAt)
+  return { matches, fixtures: loaded?.fixtures ?? [], fetchedAt: earliest(times), failed }
 }
 
 function startOfDay(date: Date): Date {

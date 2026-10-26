@@ -1,6 +1,6 @@
 import { cn } from 'cn'
-import Link from 'next/link'
 import { RowDetail } from '@/components/row-detail'
+import { SortLink } from '@/components/sort-link'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -40,6 +40,8 @@ const ARIA_SORT: Record<Dir, 'ascending' | 'descending'> = {
   desc: 'descending',
 }
 
+const ARROW: Record<Dir, string> = { asc: '↑', desc: '↓' }
+
 const EVENT_BY_ID: ReadonlyMap<string, EventDef> = new Map(EVENTS.map((e) => [e.id, e]))
 
 const DAY = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit' })
@@ -58,9 +60,6 @@ const GRID =
   'table-fixed border-separate border-spacing-0 [&_td]:border-b [&_td]:border-rule [&_th]:border-b [&_th]:border-rule'
 
 const HEAD = 'h-10 bg-field text-[11px] font-normal text-quiet'
-
-const LINK =
-  'inline-flex items-center gap-1 rounded-xs outline-offset-2 focus-visible:outline-2 focus-visible:outline-figure'
 
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
@@ -175,10 +174,11 @@ function SortableHead({ column, label, query, sort, className }: SortableHeadPro
   const active = sort.key === column
   return (
     <TableHead aria-sort={active ? ARIA_SORT[sort.dir] : 'none'} className={cn(HEAD, className)}>
-      <Link href={sortHref(query, column, sort)} scroll={false} className={LINK}>
-        {label}
-        {active && <span aria-hidden="true">{sort.dir === 'desc' ? '↓' : '↑'}</span>}
-      </Link>
+      <SortLink
+        href={sortHref(query, column, sort)}
+        label={label}
+        arrow={active ? ARROW[sort.dir] : null}
+      />
     </TableHead>
   )
 }

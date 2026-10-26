@@ -1,8 +1,9 @@
 'use client'
 
 import { cn } from 'cn'
-import { useRouter } from 'next/navigation'
-import { type FocusEvent, type KeyboardEvent, type ReactElement, useTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
+import type { FocusEvent, KeyboardEvent, ReactElement } from 'react'
+import { useFilterNav } from '@/components/filter-shell'
 import {
   Select,
   SelectContent,
@@ -17,6 +18,9 @@ import { type Query, toQuery } from '@/lib/query'
 import type { Venue } from '@/lib/streaks'
 
 const ALL = 'tutti'
+
+// The sort lives outside Query, so these are the params a filter change has to carry over by hand.
+const SORT_PARAMS = ['sort', 'dir'] as const
 
 const VENUES: readonly { value: Venue; label: string }[] = [
   { value: 'all', label: 'tutte' },
@@ -37,14 +41,16 @@ const BAR = 'flex flex-wrap gap-x-2 gap-y-3 pt-2'
 
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-figure'
 
-const CONTROL = 'data-[size=default]:h-11 rounded-lg border-rule text-figure'
+// The bar already dims as a whole while pending, so the shipped per-control disabled fade is
+// neutralised rather than stacked on top of it.
+const CONTROL = 'data-[size=default]:h-11 rounded-lg border-rule text-figure disabled:opacity-100'
 
 const POPUP = 'w-auto min-w-48 bg-field text-figure ring-rule'
 
 const ITEM = 'min-h-11 text-figure focus:bg-rule data-highlighted:bg-rule'
 
 // Selected reads as figure, unselected as quiet: the state is carried by colour, never by a fill.
-const TOGGLE = 'h-11 flex-1 text-[13px] text-quiet aria-pressed:text-figure'
+const TOGGLE = 'h-11 flex-1 text-[13px] text-quiet aria-pressed:text-figure disabled:opacity-100'
 
 function eventLabel(value: string | null): string {
   if (value === ALL || value === null) return 'tutti'
@@ -94,13 +100,20 @@ export function FiltersSkeleton() {
 }
 
 export function Filters({ query }: { query: Query }) {
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const searchParams = useSearchParams()
+  const { pending, navigate } = useFilterNav()
+
+  // Only what the URL actually holds: writing the defaults back would add a sort to every link.
+  function withSort(params: URLSearchParams): URLSearchParams {
+    for (const key of SORT_PARAMS) {
+      const value = searchParams.get(key)
+      if (value !== null) params.set(key, value)
+    }
+    return params
+  }
 
   function apply(next: Query): void {
-    startTransition(() => {
-      router.push(`?${toQuery(next)}`)
-    })
+    navigate(`?${withSort(toQuery(next))}`)
   }
 
   function applyEvent(value: string | null): void {
@@ -140,7 +153,7 @@ export function Filters({ query }: { query: Query }) {
       )}
     >
       <Field label="evento">
-        <Select value={selectedEvent} onValueChange={applyEvent}>
+        <Select value={selectedEvent} onValueChange={applyEvent} disabled={pending}>
           <SelectTrigger aria-label="evento" className={cn(CONTROL, FOCUS, WIDTHS.evento)}>
             <SelectValue>{(value: string | null) => eventLabel(value)}</SelectValue>
           </SelectTrigger>
@@ -160,6 +173,7 @@ export function Filters({ query }: { query: Query }) {
       <Field label="periodo">
         <ToggleGroup
           spacing={0}
+          disabled={pending}
           value={[query.period]}
           onValueChange={applyPeriod}
           className={cn('h-11 rounded-lg border border-rule', WIDTHS.periodo)}
@@ -179,6 +193,7 @@ export function Filters({ query }: { query: Query }) {
 
       <Field label="dove">
         <Select
+          disabled={pending}
           value={query.venue}
           onValueChange={(venue) => apply({ ...query, venue: venue ?? 'all' })}
         >
@@ -196,7 +211,12 @@ export function Filters({ query }: { query: Query }) {
       </Field>
 
       <Field label="leghe">
-        <Select multiple value={query.divs} onValueChange={(divs) => apply({ ...query, divs })}>
+        <Select
+          multiple
+          disabled={pending}
+          value={query.divs}
+          onValueChange={(divs) => apply({ ...query, divs })}
+        >
           <SelectTrigger aria-label="leghe" className={cn(CONTROL, FOCUS, WIDTHS.leghe)}>
             <SelectValue>{(value: string[]) => leaguesLabel(value)}</SelectValue>
           </SelectTrigger>
@@ -217,6 +237,7 @@ export function Filters({ query }: { query: Query }) {
           inputMode="numeric"
           min={1}
           max={60}
+          disabled={pending}
           defaultValue={query.min}
           aria-label="ritardo minimo"
           onBlur={onMinBlur}

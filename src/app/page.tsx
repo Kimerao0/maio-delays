@@ -1,4 +1,5 @@
 import { cache, Suspense } from 'react'
+import { FilterShell } from '@/components/filter-shell'
 import { Filters, FiltersSkeleton } from '@/components/filters'
 import { parseSort, RitardiTable, RitardiTableSkeleton } from '@/components/ritardi-table'
 import { leagueByDiv } from '@/lib/leagues'
@@ -32,10 +33,26 @@ function notices(failed: string[]): string[] {
   return messages
 }
 
+// Every selected league down is an outage, not a filter that happened to match nothing: there are
+// no other leagues to call aggiornate, and the minimum is not what emptied the table.
+function isOutage(failed: string[], divs: string[]): boolean {
+  return failed.filter((div) => div !== 'fixtures').length === divs.length
+}
+
+function stamp(fetchedAt: Date | null): string {
+  if (!fetchedAt) return '--:--'
+  return TIME.format(fetchedAt)
+}
+
 async function Freshness({ searchParams }: { searchParams: Params }) {
   const query = parseQuery(await searchParams)
   const snapshot = await snapshotOf(query.divs.join(','))
-  return <p>agg. {TIME.format(snapshot.fetchedAt)}</p>
+  return <p>agg. {stamp(snapshot.fetchedAt)}</p>
+}
+
+// Only the numeral is request-time, so the sentence itself prerenders with the rest of the shell.
+async function MinTurns({ searchParams }: { searchParams: Params }) {
+  return <>{parseQuery(await searchParams).min}</>
 }
 
 async function FilterBar({ searchParams }: { searchParams: Params }) {
@@ -46,6 +63,15 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
   const params = await searchParams
   const query = parseQuery(params)
   const snapshot = await snapshotOf(query.divs.join(','))
+
+  if (isOutage(snapshot.failed, query.divs)) {
+    return (
+      <p className={`${FRAME} py-8 text-[13px] text-quiet`}>
+        Dati non disponibili. Riprova tra qualche minuto.
+      </p>
+    )
+  }
+
   const rows = computeRitardi(snapshot.matches, {
     events: query.events,
     period: query.period,
@@ -75,7 +101,9 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
           rows={ranked}
           runs={runs}
           fixtures={snapshot.fixtures}
-          now={snapshot.fetchedAt}
+          // Request time, not the snapshot's: which fixture is next turns over at midnight whatever
+          // hour the bodies were downloaded.
+          now={new Date()}
           query={query}
           sort={parseSort(params)}
         />
@@ -89,20 +117,32 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
 export default function Page({ searchParams }: { searchParams: Params }) {
   return (
     <main className="flex flex-1 flex-col gap-4 py-4">
-      <div className={`${FRAME} flex flex-col gap-4`}>
+      <div className={`${FRAME} flex flex-col gap-1`}>
         <div className="flex h-7 items-center justify-between text-[15px] text-quiet">
           <h1>ritardi</h1>
           <Suspense fallback={<p>agg. --:--</p>}>
             <Freshness searchParams={searchParams} />
           </Suspense>
         </div>
-        <Suspense fallback={<FiltersSkeleton />}>
-          <FilterBar searchParams={searchParams} />
-        </Suspense>
+        <p className="text-[13px] text-quiet">
+          Squadre che non registrano un evento da almeno{' '}
+          <Suspense fallback={<span className="tabular-nums">--</span>}>
+            <MinTurns searchParams={searchParams} />
+          </Suspense>{' '}
+          turni, ordinate dalle più rare.
+        </p>
       </div>
-      <Suspense fallback={<RitardiTableSkeleton />}>
-        <RitardiSection searchParams={searchParams} />
-      </Suspense>
+      <FilterShell
+        bar={
+          <Suspense fallback={<FiltersSkeleton />}>
+            <FilterBar searchParams={searchParams} />
+          </Suspense>
+        }
+      >
+        <Suspense fallback={<RitardiTableSkeleton />}>
+          <RitardiSection searchParams={searchParams} />
+        </Suspense>
+      </FilterShell>
     </main>
   )
 }

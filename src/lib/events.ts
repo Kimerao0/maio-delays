@@ -20,9 +20,9 @@ export type Side = 'home' | 'away'
 export type EventDef = { id: EventId; label: string; short: string }
 
 export const EVENTS: readonly EventDef[] = [
-  { id: 'win', label: 'non vince', short: 'no 1' },
+  { id: 'win', label: 'non vince', short: 'no V' },
   { id: 'draw', label: 'non pareggia', short: 'no X' },
-  { id: 'loss', label: 'non perde', short: 'no 2' },
+  { id: 'loss', label: 'non perde', short: 'no S' },
   { id: 'scores', label: 'non segna', short: 'no GF' },
   { id: 'concedes', label: 'non subisce', short: 'no GS' },
   { id: 'btts', label: 'no goal', short: 'no GG' },
