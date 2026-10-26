@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { type Match, parseMatches } from '@/lib/matches'
-import { computeRitardi, streakMatches } from '@/lib/streaks'
+import { computeRitardi, runKey, streakMatches, streakRuns } from '@/lib/streaks'
 
 const m = (
   date: Date,
@@ -123,4 +123,22 @@ test('period ht is carried into the row and changes the result', () => {
   })
   expect(ht.every((r) => r.period === 'ht')).toBe(true)
   expect(ht).not.toEqual(ft)
+})
+
+test('streakRuns agrees with streakMatches for every row', () => {
+  const i1 = parseMatches(readFileSync('tests/fixtures/I1-2627.csv', 'utf8'))
+  const rows = computeRitardi(i1, {
+    events: ['draw', 'over25'],
+    period: 'ft',
+    venue: 'all',
+    min: 1,
+  })
+  const runs = streakRuns(i1, rows, 'ft', 'all')
+  expect(rows.length).toBeGreaterThan(0)
+  expect(runs.size).toBe(rows.length)
+  for (const row of rows) {
+    expect(runs.get(runKey(row.div, row.team, row.event))).toEqual(
+      streakMatches(i1, row.team, row.event, 'ft', 'all'),
+    )
+  }
 })

@@ -1,5 +1,6 @@
 import { cn } from 'cn'
 import Link from 'next/link'
+import { RowDetail } from '@/components/row-detail'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -11,20 +12,23 @@ import {
 } from '@/components/ui/table'
 import { EVENTS, type EventDef, type EventId, type Period } from '@/lib/events'
 import { leagueByDiv } from '@/lib/leagues'
+import type { Fixture, Match } from '@/lib/matches'
 import { type Query, type RawSearchParams, toQuery } from '@/lib/query'
 import type { Ranked } from '@/lib/rarity'
+import { nextFixture } from '@/lib/source'
+import { runKey } from '@/lib/streaks'
 
 type Dir = 'asc' | 'desc'
 
-export type SortKey = 'raro' | 'rit' | 'squadra' | 'evento' | 'lega' | 'ultima'
+export type SortKey = 'raro' | 'da' | 'squadra' | 'evento' | 'lega' | 'ultima'
 export type Sort = { key: SortKey; dir: Dir }
 
-const SORT_KEYS: readonly SortKey[] = ['raro', 'rit', 'squadra', 'evento', 'lega', 'ultima']
+const SORT_KEYS: readonly SortKey[] = ['raro', 'da', 'squadra', 'evento', 'lega', 'ultima']
 
 // Numeric columns read biggest-first, text columns A-Z, until the header is clicked again.
 const DEFAULT_DIR: Record<SortKey, Dir> = {
   raro: 'desc',
-  rit: 'desc',
+  da: 'desc',
   squadra: 'asc',
   evento: 'asc',
   lega: 'asc',
@@ -39,6 +43,11 @@ const ARIA_SORT: Record<Dir, 'ascending' | 'descending'> = {
 const EVENT_BY_ID: ReadonlyMap<string, EventDef> = new Map(EVENTS.map((e) => [e.id, e]))
 
 const DAY = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit' })
+
+const DECIMAL = new Intl.NumberFormat('it-IT', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+})
 
 const FRAME = 'mx-auto w-full max-w-[min(100%-2rem,84rem)]'
 
@@ -74,11 +83,27 @@ function leagueTag(div: string): string {
   return leagueByDiv(div)?.tag ?? div
 }
 
+function opponentOf(fixture: Fixture, team: string): string {
+  if (fixture.home === team) return fixture.away
+  return fixture.home
+}
+
+// The design plan's shorthand for the next match: casa or trasferta in one character.
+function sideMark(fixture: Fixture, team: string): string {
+  if (fixture.home === team) return 'c'
+  return 't'
+}
+
+function nextLabel(fixture: Fixture | null, team: string): string {
+  if (!fixture) return '—'
+  return `${opponentOf(fixture, team)} (${sideMark(fixture, team)}) ${DAY.format(fixture.date)}`
+}
+
 // Kept short enough that the column never widens the row.
 function compact(value: number): string {
   if (!Number.isFinite(value)) return '∞'
   if (value < 1000) return String(value)
-  if (value < 10_000) return `${(value / 1000).toFixed(1)}k`
+  if (value < 10_000) return `${DECIMAL.format(value / 1000)}k`
   if (value < 1_000_000) return `${Math.round(value / 1000)}k`
   return `${Math.round(value / 1_000_000)}M`
 }
@@ -127,11 +152,15 @@ function sortRows(rows: Ranked[], sort: Sort): Ranked[] {
   return [...rows].sort((a, b) => direction * compare(sort.key, a, b) || tieBreak(a, b))
 }
 
-// Top decile of what is on screen; under ten rows that resolves to the rarest run alone.
-function tailThreshold(rows: Ranked[]): number {
-  const values = rows.map((row) => row.oneIn).sort((a, b) => b - a)
-  const decile = Math.max(1, Math.ceil(values.length / 10))
-  return values[decile - 1]
+function keyOf(row: Ranked): string {
+  return runKey(row.div, row.team, row.event)
+}
+
+// Three rows, never a share of them: a decile of a 543-row table paints every figure on a phone
+// screen gold, which is the one thing the accent cannot afford to do.
+function tailKeys(rows: Ranked[]): ReadonlySet<string> {
+  const rarest = [...rows].sort((a, b) => b.oneIn - a.oneIn).slice(0, 3)
+  return new Set(rarest.map(keyOf))
 }
 
 type SortableHeadProps = {
@@ -172,14 +201,64 @@ export function RitardiTableSkeleton() {
   )
 }
 
+type RowProps = {
+  row: Ranked
+  tail: boolean
+  run: Match[]
+  next: Fixture | null
+}
+
+function Row({ row, tail, run, next }: RowProps) {
+  return (
+    <RowDetail row={row} run={run} next={next}>
+      <TableCell
+        className={cn(
+          'pr-3 text-right text-[15px] font-bold tabular-nums',
+          tail ? 'text-tail' : 'text-figure',
+        )}
+      >
+        {row.streak}
+      </TableCell>
+      <TableCell className="text-[15px] font-medium text-figure">
+        <span className="block truncate">{row.team}</span>
+      </TableCell>
+      <TableCell className="text-[13px] text-quiet">
+        <span className="md:hidden">{eventCode(row)}</span>
+        <span className="hidden md:inline">{eventLabel(row.event)}</span>
+      </TableCell>
+      <TableCell className="text-[11px] text-quiet md:hidden">{leagueTag(row.div)}</TableCell>
+      <TableCell className="hidden text-[13px] text-quiet md:table-cell">
+        {periodLabel(row.period)}
+      </TableCell>
+      <TableCell className="pr-3 text-right text-[13px] text-quiet tabular-nums">
+        {compact(row.oneIn)}
+      </TableCell>
+      <TableCell className="hidden md:table-cell">
+        <Badge variant="outline" className="border-rule text-[11px] font-normal text-quiet">
+          {leagueTag(row.div)}
+        </Badge>
+      </TableCell>
+      <TableCell className="hidden text-[13px] text-quiet tabular-nums md:table-cell">
+        {DAY.format(row.lastMatch)}
+      </TableCell>
+      <TableCell className="hidden text-[13px] text-quiet md:table-cell">
+        {nextLabel(next, row.team)}
+      </TableCell>
+    </RowDetail>
+  )
+}
+
 type RitardiTableProps = {
   rows: Ranked[]
+  runs: ReadonlyMap<string, Match[]>
+  fixtures: Fixture[]
+  now: Date
   query: Query
   sort: Sort
 }
 
-export function RitardiTable({ rows, query, sort }: RitardiTableProps) {
-  const threshold = tailThreshold(rows)
+export function RitardiTable({ rows, runs, fixtures, now, query, sort }: RitardiTableProps) {
+  const tail = tailKeys(rows)
 
   return (
     <div className={cn(FRAME, UNTRAP)}>
@@ -187,11 +266,11 @@ export function RitardiTable({ rows, query, sort }: RitardiTableProps) {
         <TableHeader className="sticky top-0 z-10">
           <TableRow>
             <SortableHead
-              column="rit"
-              label="RIT"
+              column="da"
+              label="DA"
               query={query}
               sort={sort}
-              className="w-14 pr-3 text-right"
+              className="w-12 pr-3 text-right"
             />
             <SortableHead
               column="squadra"
@@ -205,7 +284,16 @@ export function RitardiTable({ rows, query, sort }: RitardiTableProps) {
               label="EVENTO"
               query={query}
               sort={sort}
-              className="w-[86px] md:w-[144px]"
+              className="w-[84px] md:w-[144px]"
+            />
+            {/* Twice over: the phone wants the tag between EVENTO and 1 SU, the desktop keeps it
+                where it was. One table, one column order, so the pair is breakpoint-gated. */}
+            <SortableHead
+              column="lega"
+              label="LEGA"
+              query={query}
+              sort={sort}
+              className="w-14 md:hidden"
             />
             <TableHead className={cn(HEAD, 'hidden md:table-cell md:w-[72px]')}>PERIODO</TableHead>
             <SortableHead
@@ -234,38 +322,13 @@ export function RitardiTable({ rows, query, sort }: RitardiTableProps) {
         </TableHeader>
         <TableBody>
           {sortRows(rows, sort).map((row) => (
-            <TableRow key={`${row.div}-${row.team}-${row.event}`} className="h-11">
-              <TableCell
-                className={cn(
-                  'pr-3 text-right text-[15px] font-bold tabular-nums',
-                  row.oneIn >= threshold ? 'text-tail' : 'text-figure',
-                )}
-              >
-                {row.streak}
-              </TableCell>
-              <TableCell className="text-[15px] font-medium text-figure">
-                <span className="block truncate">{row.team}</span>
-              </TableCell>
-              <TableCell className="text-[13px] text-quiet">
-                <span className="md:hidden">{eventCode(row)}</span>
-                <span className="hidden md:inline">{eventLabel(row.event)}</span>
-              </TableCell>
-              <TableCell className="hidden text-[13px] text-quiet md:table-cell">
-                {periodLabel(row.period)}
-              </TableCell>
-              <TableCell className="pr-3 text-right text-[13px] text-quiet tabular-nums">
-                {compact(row.oneIn)}
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                <Badge variant="outline" className="border-rule text-[11px] font-normal text-quiet">
-                  {leagueTag(row.div)}
-                </Badge>
-              </TableCell>
-              <TableCell className="hidden text-[13px] text-quiet tabular-nums md:table-cell">
-                {DAY.format(row.lastMatch)}
-              </TableCell>
-              <TableCell className="hidden md:table-cell" />
-            </TableRow>
+            <Row
+              key={keyOf(row)}
+              row={row}
+              tail={tail.has(keyOf(row))}
+              run={runs.get(keyOf(row)) ?? []}
+              next={nextFixture(fixtures, row.div, row.team, now)}
+            />
           ))}
         </TableBody>
       </Table>

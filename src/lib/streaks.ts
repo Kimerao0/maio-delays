@@ -87,6 +87,10 @@ export function computeRitardi(matches: Match[], opts: RitardoOpts): Ritardo[] {
   return rows.sort(compareRitardi)
 }
 
+function matchesOf(entries: TeamMatch[]): Match[] {
+  return entries.map((entry) => entry.match)
+}
+
 export function streakMatches(
   matches: Match[],
   team: string,
@@ -96,5 +100,30 @@ export function streakMatches(
 ): Match[] {
   const entries = groupByTeam(matches).get(team)
   if (!entries) return []
-  return runOf(scopedEntries(entries, venue), event, period).map((entry) => entry.match)
+  return matchesOf(runOf(scopedEntries(entries, venue), event, period))
+}
+
+export function runKey(div: string, team: string, event: EventId): string {
+  return `${div}|${team}|${event}`
+}
+
+// The run behind every row at once: streakMatches groups the whole season per call, which a table
+// of hundreds of rows cannot afford to pay once per row.
+export function streakRuns(
+  matches: Match[],
+  rows: Ritardo[],
+  period: Period,
+  venue: Venue,
+): Map<string, Match[]> {
+  const scoped = new Map<string, TeamMatch[]>()
+  for (const [team, entries] of groupByTeam(matches)) {
+    scoped.set(team, scopedEntries(entries, venue))
+  }
+  const runs = new Map<string, Match[]>()
+  for (const row of rows) {
+    const entries = scoped.get(row.team)
+    if (!entries) continue
+    runs.set(runKey(row.div, row.team, row.event), matchesOf(runOf(entries, row.event, period)))
+  }
+  return runs
 }

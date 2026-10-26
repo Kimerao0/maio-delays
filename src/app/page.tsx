@@ -5,7 +5,7 @@ import { leagueByDiv } from '@/lib/leagues'
 import { parseQuery, type RawSearchParams } from '@/lib/query'
 import { baseRates, rankByRarity } from '@/lib/rarity'
 import { loadSnapshot } from '@/lib/source'
-import { computeRitardi } from '@/lib/streaks'
+import { computeRitardi, streakRuns } from '@/lib/streaks'
 
 type Params = Promise<RawSearchParams>
 
@@ -53,6 +53,7 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
     min: query.min,
   })
   const ranked = rankByRarity(rows, baseRates(snapshot.matches, query.period, query.venue))
+  const runs = streakRuns(snapshot.matches, rows, query.period, query.venue)
   const messages = notices(snapshot.failed)
 
   return (
@@ -69,7 +70,16 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
           Nessuna squadra arriva a {query.min} turni. Abbassa il minimo.
         </p>
       )}
-      {ranked.length > 0 && <RitardiTable rows={ranked} query={query} sort={parseSort(params)} />}
+      {ranked.length > 0 && (
+        <RitardiTable
+          rows={ranked}
+          runs={runs}
+          fixtures={snapshot.fixtures}
+          now={snapshot.fetchedAt}
+          query={query}
+          sort={parseSort(params)}
+        />
+      )}
     </div>
   )
 }
