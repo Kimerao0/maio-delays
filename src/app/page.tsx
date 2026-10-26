@@ -1,6 +1,7 @@
 import { cache, Suspense } from 'react'
 import { FilterShell } from '@/components/filter-shell'
 import { Filters, FiltersSkeleton } from '@/components/filters'
+import { HowItWorks } from '@/components/how-it-works'
 import { parseSort, RitardiTable, RitardiTableSkeleton } from '@/components/ritardi-table'
 import { romeDay, ZONE } from '@/lib/clock'
 import { leagueByDiv } from '@/lib/leagues'
@@ -170,6 +171,9 @@ export default function Page({ searchParams }: { searchParams: Params }) {
           <RitardiSection searchParams={searchParams} />
         </Suspense>
       </FilterShell>
+      {/* No dependency on the data, so it prerenders with the shell and is there from the first
+          paint rather than streaming in under the table. */}
+      <HowItWorks />
     </main>
   )
 }
