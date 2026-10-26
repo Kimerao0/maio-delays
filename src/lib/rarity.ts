@@ -61,3 +61,36 @@ function compareRanked(a: Ranked, b: Ranked): number {
 export function rankByRarity(rows: Ritardo[], rates: BaseRates): Ranked[] {
   return rows.map((row) => ({ ...row, oneIn: oneInOf(row, rates) })).sort(compareRanked)
 }
+
+// A floor on the number the list is already sorted by, which the minimum cannot be: a run of 7 in
+// Serie A and one of 13 in the National League compete here on merit.
+export function atLeastAsRareAs(rows: Ranked[], oneIn: number): Ranked[] {
+  return rows.filter((row) => row.oneIn >= oneIn)
+}
+
+const DECIMAL = new Intl.NumberFormat('it-IT', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+})
+
+// Kept short enough that the `1 SU` column never widens the row, and the rarity control reads the
+// same way the column does.
+export function compactOneIn(value: number): string {
+  if (!Number.isFinite(value)) return '∞'
+  if (value < 1000) return String(value)
+  if (value < 10_000) return `${DECIMAL.format(value / 1000)}k`
+  if (value < 1_000_000) return `${Math.round(value / 1000)}k`
+  return `${Math.round(value / 1_000_000)}M`
+}
+
+const SCALE: Record<string, number> = { k: 1000, m: 1_000_000 }
+
+// The inverse of the above: the control shows `1 su 2,5k`, so leaving that field untouched has to
+// read back as 2500. A bare `2500` is the other thing a typist writes.
+export function parseOneIn(raw: string): number | null {
+  const match = /^(?:1\s*su\s*)?(\d+(?:[.,]\d+)?)\s*([km])?$/i.exec(raw.trim())
+  if (!match) return null
+  const [, digits, suffix] = match
+  const scale = suffix === undefined ? 1 : SCALE[suffix.toLowerCase()]
+  return Math.round(Number(digits.replace(',', '.')) * scale)
+}

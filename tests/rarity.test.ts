@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { type Direction, EVENTS, type EventId } from '@/lib/events'
 import { parseMatches } from '@/lib/matches'
-import { baseRates, rankByRarity } from '@/lib/rarity'
+import { atLeastAsRareAs, baseRates, rankByRarity } from '@/lib/rarity'
 import { computeRitardi, type Ritardo } from '@/lib/streaks'
 
 const i1 = parseMatches(readFileSync('tests/fixtures/I1-2627.csv', 'utf8'))
@@ -130,4 +130,22 @@ test('real Serie A data: no U0.5 does not dominate the top of the ranking', () =
     min: 4,
   })
   expect(rankByRarity(rows, rates)[0].event).not.toBe('under05')
+})
+
+test('the rarity floor keeps the row sitting on it and drops the ones below', () => {
+  // At least as rare as, so the floor itself is kept, and the default floor of 1 keeps everything.
+  const rates = baseRates(i1, 'ft', 'all')
+  const row = (team: string, streak: number): Ritardo => ({
+    div: 'I1',
+    team,
+    event: 'draw',
+    period: 'ft',
+    direction: 'not',
+    streak,
+    lastMatch: new Date(2026, 9, 18),
+  })
+  const [rarest, common] = rankByRarity([row('Lecce', 9), row('Como', 2)], rates)
+  expect(atLeastAsRareAs([rarest, common], rarest.oneIn)).toEqual([rarest])
+  expect(atLeastAsRareAs([rarest, common], rarest.oneIn + 1)).toEqual([])
+  expect(atLeastAsRareAs([rarest, common], 1)).toEqual([rarest, common])
 })

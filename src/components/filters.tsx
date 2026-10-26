@@ -21,13 +21,21 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { EVENTS, type EventId, eventLabel } from '@/lib/events'
 import { LEAGUES } from '@/lib/leagues'
-import { MAX_STREAK, MIN_STREAK, type Query, toQuery } from '@/lib/query'
+import { MAX_RARITY, MAX_STREAK, MIN_RARITY, MIN_STREAK, type Query, toQuery } from '@/lib/query'
+import { compactOneIn, parseOneIn } from '@/lib/rarity'
 import { unitFor, type Venue } from '@/lib/streaks'
 
 const ALL = 'tutti'
 
 // A burst of taps on the stepper has to settle into one navigation, not one per tap.
 const IDLE_MS = 400
+
+// A ±1 step is useless across 1..1_000_000: reaching 100 would take 99 taps. The rungs are the
+// round numbers the `1 SU` column already reads in, and `+` / `−` jump between adjacent ones.
+const RUNGS: readonly number[] = [
+  1, 10, 25, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000,
+  500_000, 1_000_000,
+]
 
 // The sort lives outside Query, so these are the params a filter change has to carry over by hand.
 const SORT_PARAMS = ['sort', 'dir'] as const
@@ -38,16 +46,22 @@ const VENUES: readonly { value: Venue; label: string }[] = [
   { value: 'away', label: 'trasferta' },
 ]
 
+// `ritardi` / `serie` say what they are, so that control carries no legend — neither in the bar nor
+// in the placeholder, whose legends are the keys below.
+const UNLABELLED = 'direzione'
+
 // Shared by the bar and its placeholder, so the controls land without moving the table.
-// The sum per line is what keeps the bar at two rows inside the 358px phone frame: 136+104+96
-// wraps after `quando`, 120+120+100 after the stepper.
+// The sum per line is what decides where the bar wraps inside the 358px phone frame: 132+104+104
+// wraps after the direction toggle, 120+120+100 after the minimum, and the rarity stepper takes a
+// third row on its own.
 const WIDTHS = {
-  evento: 'w-[136px]',
+  evento: 'w-[132px]',
   periodo: 'w-[104px]',
-  quando: 'w-[96px]',
+  direzione: 'w-[104px]',
   dove: 'w-[120px]',
   leghe: 'w-[120px]',
   'turni minimo': 'w-[100px]',
+  'raro almeno': 'w-[148px]',
 } as const
 
 const BAR = 'flex flex-wrap gap-x-2 gap-y-3 pt-2'
@@ -73,7 +87,7 @@ const VALUE = 'h-11 min-w-0 flex-1 text-center text-[15px] text-figure tabular-n
 // The native spinners both duplicate the buttons and eat the width the value needs.
 const NO_SPINNER = '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none'
 
-// The event reads bare here, the negation is the `quando` toggle's job: `vince` + `non`.
+// The event reads bare here: whether the run is of it happening or not is the direction toggle's.
 function selectedEventLabel(value: string | null): string {
   const event = EVENTS.find((candidate) => candidate.id === value)
   if (!event) return 'tutti'
@@ -90,6 +104,15 @@ function venueLabel(value: Venue | null): string {
   return VENUES.find((venue) => venue.value === value)?.label ?? 'tutte'
 }
 
+// A typed value off the ladder keeps its place: the next rung above it is where `+` goes.
+function rungAbove(value: number): number {
+  return RUNGS.find((rung) => rung > value) ?? MAX_RARITY
+}
+
+function rungBelow(value: number): number {
+  return RUNGS.findLast((rung) => rung < value) ?? MIN_RARITY
+}
+
 function leaguesLabel(divs: readonly string[]): string {
   if (divs.length === LEAGUES.length) return 'tutte'
   return LEAGUES.filter((league) => divs.includes(league.div))
@@ -98,23 +121,30 @@ function leaguesLabel(divs: readonly string[]): string {
 }
 
 // The label sits on the control's own frame, so the control keeps its full 44px touch target.
-function Field({ label, children }: { label: string; children: ReactElement }) {
+function Field({ label, children }: { label?: string; children: ReactElement }) {
   return (
     <div className="relative">
-      <span className="absolute -top-2 left-2 z-10 bg-field px-1 text-[11px] leading-4 text-quiet">
-        {label}
-      </span>
+      {label && (
+        <span className="absolute -top-2 left-2 z-10 bg-field px-1 text-[11px] leading-4 text-quiet">
+          {label}
+        </span>
+      )}
       {children}
     </div>
   )
+}
+
+function legendOf(name: string): string | undefined {
+  if (name === UNLABELLED) return undefined
+  return name
 }
 
 // Stands in while the request-time query resolves: same frames, same labels, same geometry.
 export function FiltersSkeleton() {
   return (
     <div aria-hidden="true" className={BAR}>
-      {Object.entries(WIDTHS).map(([label, width]) => (
-        <Field key={label} label={label}>
+      {Object.entries(WIDTHS).map(([name, width]) => (
+        <Field key={name} label={legendOf(name)}>
           <div className={cn('h-11 rounded-lg border border-rule', width)} />
         </Field>
       ))}
@@ -122,42 +152,66 @@ export function FiltersSkeleton() {
   )
 }
 
-type MinStepperProps = {
+type StepperProps = {
   value: number
   label: string
   pending: boolean
-  onCommit: (min: number) => void
+  onCommit: (value: number) => void
+}
+
+type Burst = {
+  value: number
+  nudge: (to: (current: number) => number) => void
+  commit: (next: number) => void
 }
 
 // The value is local so a tap acknowledges in the same frame, and the push waits for the burst to
 // end: five taps are one navigation and one history entry. Re-arming on every render keeps the
 // pushed query current if another filter moves meanwhile, and `committed` is what stops a
-// re-render from pushing the same value twice. Keyed on the query's own min by the caller, so Back
-// and a server answer both reset it.
-function MinStepper({ value, label, pending, onCommit }: MinStepperProps) {
-  const [min, setMin] = useState(value)
-  const committed = useRef(value)
+// re-render from pushing the same value twice. Keyed on the query's own value by the caller, so
+// Back and a server answer both reset it.
+function useBurst(initial: number, onCommit: (value: number) => void): Burst {
+  const [value, setValue] = useState(initial)
+  const committed = useRef(initial)
 
   useEffect(() => {
-    if (min === committed.current) return
+    if (value === committed.current) return
     const timer = setTimeout(() => {
-      committed.current = min
-      onCommit(min)
+      committed.current = value
+      onCommit(value)
     }, IDLE_MS)
     return () => clearTimeout(timer)
-  }, [min, onCommit])
+  }, [value, onCommit])
 
-  function nudge(step: number): void {
-    setMin((current) => Math.min(MAX_STREAK, Math.max(MIN_STREAK, current + step)))
+  // Off the value the last tap left, not off the rendered one: a burst faster than a render still
+  // counts every tap.
+  function nudge(to: (current: number) => number): void {
+    setValue(to)
   }
 
   // Typing keeps its own contract: the stepper is for nudging, Enter and blur commit at once.
+  function commit(next: number): void {
+    if (next === value) return
+    committed.current = next
+    setValue(next)
+    onCommit(next)
+  }
+
+  return { value, nudge, commit }
+}
+
+function MinStepper({ value, label, pending, onCommit }: StepperProps) {
+  const burst = useBurst(value, onCommit)
+  const min = burst.value
+
+  function nudge(step: number): void {
+    burst.nudge((current) => Math.min(MAX_STREAK, Math.max(MIN_STREAK, current + step)))
+  }
+
   function commit(raw: string): void {
     const typed = Number.parseInt(raw, 10)
-    if (!Number.isInteger(typed) || typed === min) return
-    committed.current = typed
-    setMin(typed)
-    onCommit(typed)
+    if (!Number.isInteger(typed)) return
+    burst.commit(typed)
   }
 
   function onBlur(blur: FocusEvent<HTMLInputElement>): void {
@@ -199,6 +253,64 @@ function MinStepper({ value, label, pending, onCommit }: MinStepperProps) {
           aria-label="aumenta"
           disabled={pending || min >= MAX_STREAK}
           onClick={() => nudge(1)}
+          className={cn(STEP, FOCUS)}
+        >
+          +
+        </button>
+      </div>
+    </Field>
+  )
+}
+
+// The same burst, the same frame, a ladder instead of ±1: the value is a rarity, so it reads and
+// types as `1 su 2,5k` rather than as a bare number.
+function RarityStepper({ value, label, pending, onCommit }: StepperProps) {
+  const burst = useBurst(value, onCommit)
+  const rarity = burst.value
+
+  function commit(raw: string): void {
+    const typed = parseOneIn(raw)
+    if (typed === null) return
+    burst.commit(typed)
+  }
+
+  function onBlur(blur: FocusEvent<HTMLInputElement>): void {
+    commit(blur.currentTarget.value)
+  }
+
+  function onKeyDown(press: KeyboardEvent<HTMLInputElement>): void {
+    if (press.key !== 'Enter') return
+    commit(press.currentTarget.value)
+  }
+
+  return (
+    <Field label={label}>
+      <div className={cn('flex h-11 rounded-lg border border-rule', WIDTHS['raro almeno'])}>
+        <button
+          type="button"
+          aria-label="meno raro"
+          disabled={pending || rarity <= MIN_RARITY}
+          onClick={() => burst.nudge(rungBelow)}
+          className={cn(STEP, FOCUS)}
+        >
+          −
+        </button>
+        <input
+          key={rarity}
+          type="text"
+          inputMode="numeric"
+          disabled={pending}
+          defaultValue={`1 su ${compactOneIn(rarity)}`}
+          aria-label={label}
+          onBlur={onBlur}
+          onKeyDown={onKeyDown}
+          className={cn(VALUE, FOCUS)}
+        />
+        <button
+          type="button"
+          aria-label="più raro"
+          disabled={pending || rarity >= MAX_RARITY}
+          onClick={() => burst.nudge(rungAbove)}
           className={cn(STEP, FOCUS)}
         >
           +
@@ -292,27 +404,22 @@ export function Filters({ query }: { query: Query }) {
         </ToggleGroup>
       </Field>
 
-      {/* Reads as a sentence with the event: `vince` plus `non` is a run without a win. */}
-      <Field label="quando">
-        <ToggleGroup
-          spacing={0}
-          disabled={pending}
-          value={[query.direction]}
-          onValueChange={applyDirection}
-          className={cn('h-11 rounded-lg border border-rule', WIDTHS.quando)}
-        >
-          <ToggleGroupItem value="not" aria-label="non accade" className={cn(TOGGLE, FOCUS)}>
-            non
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="yes"
-            aria-label="accade"
-            className={cn(TOGGLE, FOCUS, 'border-l border-rule')}
-          >
-            sì
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </Field>
+      {/* The domain's own two words, each named positively: a run of the event not happening is a
+          ritardo, a run of it happening is a serie. Neither needs a legend to be read. */}
+      <ToggleGroup
+        spacing={0}
+        disabled={pending}
+        value={[query.direction]}
+        onValueChange={applyDirection}
+        className={cn('h-11 rounded-lg border border-rule', WIDTHS.direzione)}
+      >
+        <ToggleGroupItem value="not" className={cn(TOGGLE, FOCUS)}>
+          ritardi
+        </ToggleGroupItem>
+        <ToggleGroupItem value="yes" className={cn(TOGGLE, FOCUS, 'border-l border-rule')}>
+          serie
+        </ToggleGroupItem>
+      </ToggleGroup>
 
       <Field label="dove">
         <Select
@@ -359,6 +466,14 @@ export function Filters({ query }: { query: Query }) {
         label={minLabel}
         pending={pending}
         onCommit={(min) => apply({ ...query, min })}
+      />
+
+      <RarityStepper
+        key={query.rarity}
+        value={query.rarity}
+        label="raro almeno"
+        pending={pending}
+        onCommit={(rarity) => apply({ ...query, rarity })}
       />
     </div>
   )

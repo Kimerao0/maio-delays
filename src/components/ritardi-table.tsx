@@ -14,7 +14,7 @@ import { eventLabel, eventShort, type Period } from '@/lib/events'
 import { leagueByDiv } from '@/lib/leagues'
 import type { Fixture, Match } from '@/lib/matches'
 import { type Query, type RawSearchParams, toQuery } from '@/lib/query'
-import type { Ranked } from '@/lib/rarity'
+import { compactOneIn, type Ranked } from '@/lib/rarity'
 import { nextFixture } from '@/lib/source'
 import { runKey } from '@/lib/streaks'
 
@@ -43,11 +43,6 @@ const ARIA_SORT: Record<Dir, 'ascending' | 'descending'> = {
 const ARROW: Record<Dir, string> = { asc: '↑', desc: '↓' }
 
 const DAY = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit' })
-
-const DECIMAL = new Intl.NumberFormat('it-IT', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-})
 
 const FRAME = 'mx-auto w-full max-w-[min(100%-2rem,84rem)]'
 
@@ -94,15 +89,6 @@ function sideMark(fixture: Fixture, team: string): string {
 function nextLabel(fixture: Fixture | null, team: string): string {
   if (!fixture) return '—'
   return `${opponentOf(fixture, team)} (${sideMark(fixture, team)}) ${DAY.format(fixture.date)}`
-}
-
-// Kept short enough that the column never widens the row.
-function compact(value: number): string {
-  if (!Number.isFinite(value)) return '∞'
-  if (value < 1000) return String(value)
-  if (value < 10_000) return `${DECIMAL.format(value / 1000)}k`
-  if (value < 1_000_000) return `${Math.round(value / 1000)}k`
-  return `${Math.round(value / 1_000_000)}M`
 }
 
 function readDir(raw: string | string[] | undefined, key: SortKey): Dir {
@@ -229,7 +215,7 @@ function Row({ row, tail, run, next }: RowProps) {
         {periodLabel(row.period)}
       </TableCell>
       <TableCell className="pr-3 text-right text-[13px] text-quiet tabular-nums">
-        {compact(row.oneIn)}
+        {compactOneIn(row.oneIn)}
       </TableCell>
       <TableCell className="hidden md:table-cell">
         <Badge variant="outline" className="border-rule text-[11px] font-normal text-quiet">

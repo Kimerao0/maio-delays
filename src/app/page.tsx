@@ -3,8 +3,8 @@ import { FilterShell } from '@/components/filter-shell'
 import { Filters, FiltersSkeleton } from '@/components/filters'
 import { parseSort, RitardiTable, RitardiTableSkeleton } from '@/components/ritardi-table'
 import { leagueByDiv } from '@/lib/leagues'
-import { parseQuery, type RawSearchParams } from '@/lib/query'
-import { baseRates, rankByRarity } from '@/lib/rarity'
+import { parseQuery, type Query, type RawSearchParams } from '@/lib/query'
+import { atLeastAsRareAs, baseRates, rankByRarity } from '@/lib/rarity'
 import { loadSnapshot } from '@/lib/source'
 import { computeRitardi, streakRuns, unitFor } from '@/lib/streaks'
 
@@ -37,6 +37,13 @@ function notices(failed: string[]): string[] {
 // no other leagues to call aggiornate, and the minimum is not what emptied the table.
 function isOutage(failed: string[], divs: string[]): boolean {
   return failed.filter((div) => div !== 'fixtures').length === divs.length
+}
+
+// With a rarity floor set high the rows are there and the floor hid them, so the minimum is the
+// wrong thing to blame.
+function emptyMessage(query: Query, hiddenByRarity: boolean): string {
+  if (hiddenByRarity) return 'Nessuna squadra è così rara. Abbassa la soglia.'
+  return `Nessuna squadra arriva a ${query.min} ${unitFor(query.venue)}. Abbassa il minimo.`
 }
 
 function stamp(fetchedAt: Date | null): string {
@@ -88,6 +95,7 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
     min: query.min,
   })
   const ranked = rankByRarity(rows, baseRates(snapshot.matches, query.period, query.venue))
+  const rare = atLeastAsRareAs(ranked, query.rarity)
   const runs = streakRuns(snapshot.matches, rows, query.period, query.direction, query.venue)
   const messages = notices(snapshot.failed)
 
@@ -100,14 +108,14 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
           ))}
         </div>
       )}
-      {ranked.length === 0 && (
+      {rare.length === 0 && (
         <p className={`${FRAME} py-8 text-[13px] text-quiet`}>
-          Nessuna squadra arriva a {query.min} {unitFor(query.venue)}. Abbassa il minimo.
+          {emptyMessage(query, ranked.length > 0)}
         </p>
       )}
-      {ranked.length > 0 && (
+      {rare.length > 0 && (
         <RitardiTable
-          rows={ranked}
+          rows={rare}
           runs={runs}
           fixtures={snapshot.fixtures}
           // Request time, not the snapshot's: which fixture is next turns over at midnight whatever
