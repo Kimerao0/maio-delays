@@ -80,7 +80,10 @@ align on their units digit or they do not align at all.
 
 ```
 ┌────────────────────────────────────────┐  16px gutters, 358px content
-│ ritardi                     agg. 14:32 │  28px  ·  quiet timestamp
+│ ritardi                     agg. 15:05 │  28px  ·  download time, not
+│ Squadre che non registrano un evento   │  render time
+│ da almeno 6 turni, ordinate dalle      │  13px quiet, wraps to 2
+│ piu rare.                              │  lines at 390 (+43px)
 │                                        │
 │ ┌─ evento ──┐ ┌─ periodo ─┐            │  filter bar, wraps to 2 rows
 │ │ tutti   ▾ │ │ 1°T │ 90' │            │  44px touch targets
@@ -89,9 +92,9 @@ align on their units digit or they do not align at all.
 │ │ tutte   ▾ │ │ tutte   ▾ │ │   6   │  │
 │ └───────────┘ └───────────┘ └───────┘  │
 ├────────────────────────────────────────┤
-│ RIT  SQUADRA        EVENTO        LEGA │  sticky, 11px quiet
+│ DA  SQUADRA      EVENTO   LEGA  1 SU │  sticky, 11px quiet
 ├────────────────────────────────────────┤
-│  11  Lecce          non pareggia   ITA │  48px row
+│ 11  Lecce        no X     ITA   174 │  44px row
 │  10  Verona         non segna 1°T  ITA │
 │   9  Getafe         non pareggia   ESP │
 │   8  Le Havre       non segna 1°T  FRA │
@@ -132,12 +135,33 @@ column, hairline rules, and nothing competing for attention. Lean is the identit
 ## Copy
 
 Italian, sentence case, no filler. `ritardi` as the title, lowercase, because it is a thing not a
-brand. The timestamp reads `agg. 14:32`, the way a results page says it.
+brand.
 
-Empty state: *Nessuna squadra arriva a 6 turni. Abbassa il minimo.* — says what happened and what
-to do, in one line, and the number is the one currently in the filter.
+Under the title, one line that makes the screen self-explanatory — added after a UX review found
+that nothing on screen explained `DA`, `1 SU`, or why the order was what it was (the DA column reads
+7, 10, 10, 9, 8, 13, which looks broken until you know the sort is by rarity):
 
-Failed league: *Serie B non risponde. Le altre leghe sono aggiornate.* Named, not swallowed.
+> Squadre che non registrano un evento da almeno {min} turni, ordinate dalle piu rare.
+
+One line, with the live `min` in it. **No tooltip, no `?` icon, no accordion** — a help affordance
+is a confession that the headers failed, and the identity here is a quiet grid. The word *rare*
+carries the meaning of `1 SU`, which otherwise reads as betting odds; `docs/spec.md` forbids the UI
+from implying odds.
+
+The timestamp reads `agg. 15:05`, the way a results page says it, and it is **the moment the CSVs
+were downloaded, not the moment the page rendered** — taken from the cached response's `date` header,
+earliest across the bodies. A stamp that always showed the current minute on three-hour-old data was
+the first thing that review caught. `agg. --:--` when nothing was fetched.
+
+Empty state: *Nessuna squadra arriva a 6 turni. Abbassa il minimo.* — says what happened and what to
+do, in one line, with the number currently in the filter.
+
+Failed league: *Serie B non risponde. Le altre leghe sono aggiornate.* Named, not swallowed. Several:
+*Serie B, Liga non rispondono.* The calendar separately: *Il calendario non risponde.*
+
+Total outage, when **every** selected league failed: *Dati non disponibili. Riprova tra qualche
+minuto.* — and the `min` advice is suppressed, because blaming the user's filter for an outage sends
+them to fix the wrong thing. This replaces the per-league notices rather than adding to them.
 
 ## Review against the generic defaults
 
