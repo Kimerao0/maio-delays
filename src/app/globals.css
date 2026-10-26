@@ -1,26 +1,35 @@
 @import "tailwindcss";
 
+/* Five roles, both schemes tuned as primary: neither is a tint of the other. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --field: #ffffff;
+  --rule: #e4e4e7;
+  --figure: #18181b;
+  --quiet: #71717a;
+  --tail: #a16207;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --field: #15181c;
+    --rule: #2a2f36;
+    --figure: #f4f4f5;
+    --quiet: #8a9099;
+    --tail: #f2c14e;
   }
 }
 
+@theme inline {
+  --color-field: var(--field);
+  --color-rule: var(--rule);
+  --color-figure: var(--figure);
+  --color-quiet: var(--quiet);
+  --color-tail: var(--tail);
+  --font-sans: var(--font-archivo);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--field);
+  color: var(--figure);
+  font-family: var(--font-archivo), sans-serif;
 }
