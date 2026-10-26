@@ -13,7 +13,9 @@ import { eventLabel, type Period } from '@/lib/events'
 import type { Fixture, Match } from '@/lib/matches'
 import type { Ranked } from '@/lib/rarity'
 
-const DAY = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit' })
+// UTC because a match date is a calendar date stored as midnight UTC: read in any other zone it
+// prints the day before.
+const DAY = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })
 
 const TRIGGER =
   'h-11 cursor-pointer outline-offset-[-2px] focus-visible:outline-2 focus-visible:outline-figure'

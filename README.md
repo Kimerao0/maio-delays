@@ -154,14 +154,18 @@ so they can be checked against a prediction made before anyone looked, and **exi
 horizontal scroll at phone width**. It is deliberately not part of `pnpm verify`: a headless browser
 should never stand between a correct change and a push.
 
-Dates are pinned to `Europe/Rome` in `vitest.config.mts` and must be set the same way in production.
-Left to the host, a season boundary computed from a UTC midnight lands in the wrong month west of
-UTC — a test caught this by failing in `America/New_York` while passing locally.
+**There is no `TZ` to set.** A date from the CSVs is a calendar date, not a moment, so it is encoded
+as UTC midnight and read back in UTC — it survives any host unchanged. The zone lives in exactly one
+module, `src/lib/clock.ts`, and is used only for the three things that are genuinely about _now_:
+which calendar day it is in Rome, which season the current month falls in, and the fetch timestamp.
+The suite passes under `Pacific/Kiritimati` (UTC+14) and `Pacific/Midway` (UTC−11) with no pin, which
+is the point: an earlier version depended on the host's `TZ` and failed silently by computing the
+wrong season.
 
 ### Layout
 
 ```
-src/lib/        pure domain: csv, season, matches, events, streaks, rarity, query, leagues
+src/lib/        pure domain: csv, clock, season, matches, events, streaks, rarity, query, leagues
 src/app/        the single route
 src/components/ filter bar, table, row detail
 scripts/shots/  screenshot + measurement rig

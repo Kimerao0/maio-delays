@@ -66,7 +66,8 @@ function parseDate(value: string): Date | null {
   const month = Number(monthText)
   const year = Number(yearText)
   if (!Number.isInteger(day) || !Number.isInteger(month) || !Number.isInteger(year)) return null
-  return new Date(fullYear(year), month - 1, day)
+  // Midnight UTC, not host-local: a calendar date has to read back as the same day on every host.
+  return new Date(Date.UTC(fullYear(year), month - 1, day))
 }
 
 function fullYear(year: number): number {

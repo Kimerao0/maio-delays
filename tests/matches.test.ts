@@ -10,8 +10,16 @@ test('parses every played match in the real Serie A file', () => {
 
 test('reads dd/mm/yyyy as a day, not a month', () => {
   const first = parseMatches(i1)[0]
-  expect(first.date.getMonth()).toBe(7) // August
-  expect(first.date.getDate()).toBe(22)
+  expect(first.date.getUTCMonth()).toBe(7) // August
+  expect(first.date.getUTCDate()).toBe(22)
+})
+
+test('a CSV date keeps its calendar day whatever the host timezone is', () => {
+  const first = parseMatches(i1)[0]
+  expect(first.date.getUTCFullYear()).toBe(2026)
+  expect(first.date.getUTCMonth()).toBe(7)
+  expect(first.date.getUTCDate()).toBe(22)
+  expect(first.date.getUTCHours()).toBe(0)
 })
 
 test('returns matches oldest first', () => {

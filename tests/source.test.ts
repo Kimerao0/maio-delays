@@ -63,7 +63,9 @@ test('nextFixture includes a fixture later today', () => {
 test('a fixture kicking off later today still counts as upcoming at 21:00', () => {
   const fx = parseFixtures(readFileSync('tests/fixtures/fixtures.csv', 'utf8'))
   const kickOff = fx[0].date
-  const tonight = new Date(kickOff.getFullYear(), kickOff.getMonth(), kickOff.getDate(), 21)
+  const tonight = new Date(
+    Date.UTC(kickOff.getUTCFullYear(), kickOff.getUTCMonth(), kickOff.getUTCDate(), 21),
+  )
   expect(nextFixture(fx, 'I1', fx[0].home, tonight)).toEqual(fx[0])
 })
 

@@ -42,7 +42,9 @@ const ARIA_SORT: Record<Dir, 'ascending' | 'descending'> = {
 
 const ARROW: Record<Dir, string> = { asc: '↑', desc: '↓' }
 
-const DAY = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit' })
+// UTC because a match date is a calendar date stored as midnight UTC: read in any other zone it
+// prints the day before.
+const DAY = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })
 
 const FRAME = 'mx-auto w-full max-w-[min(100%-2rem,84rem)]'
 

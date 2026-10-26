@@ -2,6 +2,7 @@ import { cache, Suspense } from 'react'
 import { FilterShell } from '@/components/filter-shell'
 import { Filters, FiltersSkeleton } from '@/components/filters'
 import { parseSort, RitardiTable, RitardiTableSkeleton } from '@/components/ritardi-table'
+import { romeDay, ZONE } from '@/lib/clock'
 import { leagueByDiv } from '@/lib/leagues'
 import { parseQuery, type Query, type RawSearchParams } from '@/lib/query'
 import { atLeastAsRareAs, baseRates, rankByRarity } from '@/lib/rarity'
@@ -10,7 +11,12 @@ import { computeRitardi, streakRuns, unitFor } from '@/lib/streaks'
 
 type Params = Promise<RawSearchParams>
 
-const TIME = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' })
+// A true instant, unlike the dates in the rows, so the hour it reads has to name a zone.
+const TIME = new Intl.DateTimeFormat('it-IT', {
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: ZONE,
+})
 
 const FRAME = 'mx-auto w-full max-w-[min(100%-2rem,84rem)]'
 
@@ -120,7 +126,7 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
           fixtures={snapshot.fixtures}
           // Request time, not the snapshot's: which fixture is next turns over at midnight whatever
           // hour the bodies were downloaded.
-          now={new Date()}
+          now={romeDay()}
           query={query}
           sort={parseSort(params)}
         />

@@ -267,8 +267,12 @@ function MinStepper({ value, label, pending, onCommit }: StepperProps) {
 function RarityStepper({ value, label, pending, onCommit }: StepperProps) {
   const burst = useBurst(value, onCommit)
   const rarity = burst.value
+  const shown = `1 su ${compactOneIn(rarity)}`
 
+  // A typed 123456 reads back as `1 su 123k`, so parsing the field the user never touched would
+  // commit 123000: text still as rendered is not an edit, and commits nothing.
   function commit(raw: string): void {
+    if (raw === shown) return
     const typed = parseOneIn(raw)
     if (typed === null) return
     burst.commit(typed)
@@ -300,7 +304,7 @@ function RarityStepper({ value, label, pending, onCommit }: StepperProps) {
           type="text"
           inputMode="numeric"
           disabled={pending}
-          defaultValue={`1 su ${compactOneIn(rarity)}`}
+          defaultValue={shown}
           aria-label={label}
           onBlur={onBlur}
           onKeyDown={onKeyDown}

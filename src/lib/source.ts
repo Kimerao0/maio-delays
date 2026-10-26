@@ -93,8 +93,10 @@ export async function loadSnapshot(divs: string[], now = new Date()): Promise<Sn
   return { matches, fixtures: loaded?.fixtures ?? [], fetchedAt: earliest(times), failed }
 }
 
+// UTC, which is how both sides arrive here: a fixture date is midnight UTC of its calendar day, and
+// `now` reaches nextFixture as the Rome day encoded the same way.
 function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
 }
 
 // Calendar day, not timestamp: a fixture kicking off tonight is still upcoming at 21:00.
