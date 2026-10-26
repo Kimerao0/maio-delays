@@ -8,10 +8,10 @@ across the main European leagues, for any of the betting categories on
 
 Maio (the user who asked for this) can already see one team at a time on a friend's Shiny app. He
 cannot ask "which teams haven't drawn in 5 rounds?" — the app has no cross-team view beyond a
-heatmap he described as *"non si legge un cazzo"*. This app is that cross-team view, made legible.
+heatmap he described as _"non si legge un cazzo"_. This app is that cross-team view, made legible.
 
-Maio confirmed the friend's categories are the right ones: *"Le categorie sono quelle del sito del
-mio amico. Vanno benissimo."*
+Maio confirmed the friend's categories are the right ones: _"Le categorie sono quelle del sito del
+mio amico. Vanno benissimo."_
 
 ## Scope
 
@@ -41,37 +41,40 @@ probability of a streak, multi-season carry-over.
   `HTAG`, `HTR`. There is **no matchday/round column**.
 - Fixtures columns used: `Div`, `Date`, `Time`, `HomeTeam`, `AwayTeam`.
 - Team names are **byte-identical** between results and fixtures (checked for I1). No normalisation.
-- `fixtures.csv` holds only the **current round** — on 2026-10-26 it spanned 23–26/10 and held
-  exactly 10 I1 matches. It can contain dates already in the past, and a team can be absent.
+- `fixtures.csv` holds only the **current round** — on 2026-10-26 it spanned 23–26/10 across all
+  divisions, and held exactly 10 I1 matches, those spanning 23–25/10. It can contain dates already
+  in the past, and a team can be absent.
+- All dates are treated in **Europe/Rome**, pinned in the Vitest config and in the Vercel `TZ` env
+  var. A calendar-day comparison must mean the same thing in tests, locally and in production.
 
 ### Leagues
 
 The 21 divisions present in `fixtures.csv`, with Italian display names and a 3-letter tag for the
 phone table:
 
-| Div | Nome | Tag |
-|---|---|---|
-| I1 | Serie A | ITA |
-| I2 | Serie B | ITA2 |
-| E0 | Premier League | ENG |
-| E1 | Championship | ENG2 |
-| E2 | League One | ENG3 |
-| E3 | League Two | ENG4 |
-| EC | National League | ENG5 |
-| SP1 | Liga | ESP |
-| SP2 | Liga 2 | ESP2 |
-| D1 | Bundesliga | GER |
-| D2 | 2. Bundesliga | GER2 |
-| F1 | Ligue 1 | FRA |
-| F2 | Ligue 2 | FRA2 |
-| N1 | Eredivisie | NED |
-| B1 | Jupiler Pro League | BEL |
-| P1 | Primeira Liga | POR |
-| T1 | Süper Lig | TUR |
-| G1 | Super League | GRE |
-| SC0 | Premiership | SCO |
+| Div | Nome               | Tag  |
+| --- | ------------------ | ---- |
+| I1  | Serie A            | ITA  |
+| I2  | Serie B            | ITA2 |
+| E0  | Premier League     | ENG  |
+| E1  | Championship       | ENG2 |
+| E2  | League One         | ENG3 |
+| E3  | League Two         | ENG4 |
+| EC  | National League    | ENG5 |
+| SP1 | Liga               | ESP  |
+| SP2 | Liga 2             | ESP2 |
+| D1  | Bundesliga         | GER  |
+| D2  | 2. Bundesliga      | GER2 |
+| F1  | Ligue 1            | FRA  |
+| F2  | Ligue 2            | FRA2 |
+| N1  | Eredivisie         | NED  |
+| B1  | Jupiler Pro League | BEL  |
+| P1  | Primeira Liga      | POR  |
+| T1  | Süper Lig          | TUR  |
+| G1  | Super League       | GRE  |
+| SC0 | Premiership        | SCO  |
 | SC1 | Championship (SCO) | SCO2 |
-| SC2 | League One (SCO) | SCO3 |
+| SC2 | League One (SCO)   | SCO3 |
 
 ### Season
 
@@ -90,23 +93,23 @@ is **not a match** and is dropped (postponed or not yet played).
 An event either **occurred** or **did not occur** in a match, from one team's point of view. The 12
 events, in UI order:
 
-| Id | Etichetta | Codice | Occurs when |
-|---|---|---|---|
-| `win` | non vince | `no 1` | the team won |
-| `draw` | non pareggia | `no X` | the match was drawn |
-| `loss` | non perde | `no 2` | the team lost |
-| `scores` | non segna | `no GF` | the team scored ≥ 1 |
-| `concedes` | non subisce | `no GS` | the team conceded ≥ 1 |
-| `btts` | no goal | `no GG` | both teams scored |
-| `over05` | non over 0.5 | `no O0.5` | total goals > 0.5 |
-| `over15` | non over 1.5 | `no O1.5` | total goals > 1.5 |
-| `over25` | non over 2.5 | `no O2.5` | total goals > 2.5 |
-| `under05` | non under 0.5 | `no U0.5` | total goals < 0.5 |
-| `under15` | non under 1.5 | `no U1.5` | total goals < 1.5 |
-| `under25` | non under 2.5 | `no U2.5` | total goals < 2.5 |
+| Id         | Etichetta     | Codice    | Occurs when           |
+| ---------- | ------------- | --------- | --------------------- |
+| `win`      | non vince     | `no 1`    | the team won          |
+| `draw`     | non pareggia  | `no X`    | the match was drawn   |
+| `loss`     | non perde     | `no 2`    | the team lost         |
+| `scores`   | non segna     | `no GF`   | the team scored ≥ 1   |
+| `concedes` | non subisce   | `no GS`   | the team conceded ≥ 1 |
+| `btts`     | no goal       | `no GG`   | both teams scored     |
+| `over05`   | non over 0.5  | `no O0.5` | total goals > 0.5     |
+| `over15`   | non over 1.5  | `no O1.5` | total goals > 1.5     |
+| `over25`   | non over 2.5  | `no O2.5` | total goals > 2.5     |
+| `under05`  | non under 0.5 | `no U0.5` | total goals < 0.5     |
+| `under15`  | non under 1.5 | `no U1.5` | total goals < 1.5     |
+| `under25`  | non under 2.5 | `no U2.5` | total goals < 2.5     |
 
-Both directions of each pair are present on purpose: the *ritardo* of `concedes` is a clean-sheet
-run, and the *ritardo* of `under25` is a run of overs. No separate "clean sheet" event is needed.
+Both directions of each pair are present on purpose: the _ritardo_ of `concedes` is a clean-sheet
+run, and the _ritardo_ of `under25` is a run of overs. No separate "clean sheet" event is needed.
 
 ### Period
 
@@ -121,7 +124,7 @@ among themselves — the away matches in between are skipped, not treated as bre
 
 ### Ritardo (streak)
 
-Walk the team's matches, newest first, within the chosen venue. The *ritardo* is how many
+Walk the team's matches, newest first, within the chosen venue. The _ritardo_ is how many
 consecutive matches the event did not occur in. If it occurred in the newest match, the ritardo is
 0. A team with no matches has no row.
 

@@ -53,8 +53,27 @@
 // tests/leagues.test.ts
 test('LEAGUES covers the 21 divisions in fixtures.csv', () => {
   expect(LEAGUES.map((l) => l.div)).toEqual([
-    'I1','I2','E0','E1','E2','E3','EC','SP1','SP2','D1','D2',
-    'F1','F2','N1','B1','P1','T1','G1','SC0','SC1','SC2',
+    'I1',
+    'I2',
+    'E0',
+    'E1',
+    'E2',
+    'E3',
+    'EC',
+    'SP1',
+    'SP2',
+    'D1',
+    'D2',
+    'F1',
+    'F2',
+    'N1',
+    'B1',
+    'P1',
+    'T1',
+    'G1',
+    'SC0',
+    'SC1',
+    'SC2',
   ])
 })
 test('tags are unique', () => {
@@ -150,9 +169,10 @@ test('reads full-time and half-time goals', () => {
   expect(inter).toMatchObject({ ftHome: 4, ftAway: 1, htHome: 1, htAway: 1 })
 })
 test('drops a row whose full-time goals are empty', () => {
-  const text = '﻿Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HTHG,HTAG\n'
-    + 'I1,22/08/2026,Inter,Monza,,,,\n'
-    + 'I1,23/08/2026,Roma,Lazio,1,0,0,0\n'
+  const text =
+    '﻿Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HTHG,HTAG\n' +
+    'I1,22/08/2026,Inter,Monza,,,,\n' +
+    'I1,23/08/2026,Roma,Lazio,1,0,0,0\n'
   expect(parseMatches(text).map((m) => m.home)).toEqual(['Roma'])
 })
 test('parses the real fixtures file', () => {
@@ -202,17 +222,29 @@ git add -A && git commit -m "feat: parse football-data CSVs into matches"
 
 ```ts
 const m = (ftHome: number, ftAway: number, htHome = 0, htAway = 0): Match => ({
-  div: 'I1', date: new Date(2026, 7, 22), home: 'A', away: 'B', ftHome, ftAway, htHome, htAway,
+  div: 'I1',
+  date: new Date(2026, 7, 22),
+  home: 'A',
+  away: 'B',
+  ftHome,
+  ftAway,
+  htHome,
+  htAway,
 })
 
 test.each<[EventId, Side, boolean]>([
-  ['win', 'home', true], ['win', 'away', false],
-  ['loss', 'home', false], ['loss', 'away', true],
+  ['win', 'home', true],
+  ['win', 'away', false],
+  ['loss', 'home', false],
+  ['loss', 'away', true],
   ['draw', 'home', false],
-  ['scores', 'home', true], ['concedes', 'home', true],
+  ['scores', 'home', true],
+  ['concedes', 'home', true],
   ['btts', 'home', true],
-  ['over25', 'home', true], ['under25', 'home', false],
-  ['over05', 'home', true], ['under05', 'home', false],
+  ['over25', 'home', true],
+  ['under25', 'home', false],
+  ['over05', 'home', true],
+  ['under05', 'home', false],
 ])('2-1 full time: %s for %s is %s', (id, side, expected) => {
   expect(occurred(id, m(2, 1), side, 'ft')).toBe(expected)
 })
@@ -276,33 +308,69 @@ git add -A && git commit -m "feat: add the 12-event occurrence catalog"
 
 ```ts
 test('counts consecutive non-occurrences back from the newest match', () => {
-  const out = computeRitardi(fixtureMatches, { events: ['win'], period: 'ft', venue: 'all', min: 1 })
+  const out = computeRitardi(fixtureMatches, {
+    events: ['win'],
+    period: 'ft',
+    venue: 'all',
+    min: 1,
+  })
   expect(out.find((r) => r.team === 'C')?.streak).toBe(3)
 })
 test('a team whose newest match had the event has a streak of 0 and is filtered out by min 1', () => {
-  const out = computeRitardi(fixtureMatches, { events: ['win'], period: 'ft', venue: 'all', min: 1 })
+  const out = computeRitardi(fixtureMatches, {
+    events: ['win'],
+    period: 'ft',
+    venue: 'all',
+    min: 1,
+  })
   expect(out.find((r) => r.team === 'B')).toBeUndefined()
 })
 test('venue home counts only home matches, consecutively among themselves', () => {
   // A's away win sits between its two home draws: it breaks the all-venue run but not the home one.
-  const all = computeRitardi(fixtureMatches, { events: ['win'], period: 'ft', venue: 'all', min: 1 })
-  const home = computeRitardi(fixtureMatches, { events: ['win'], period: 'ft', venue: 'home', min: 1 })
+  const all = computeRitardi(fixtureMatches, {
+    events: ['win'],
+    period: 'ft',
+    venue: 'all',
+    min: 1,
+  })
+  const home = computeRitardi(fixtureMatches, {
+    events: ['win'],
+    period: 'ft',
+    venue: 'home',
+    min: 1,
+  })
   expect(all.find((r) => r.team === 'A')?.streak).toBe(1)
   expect(home.find((r) => r.team === 'A')?.streak).toBe(2)
 })
 test('min filters out shorter runs', () => {
-  expect(computeRitardi(fixtureMatches, { events: ['win'], period: 'ft', venue: 'all', min: 99 })).toEqual([])
+  expect(
+    computeRitardi(fixtureMatches, { events: ['win'], period: 'ft', venue: 'all', min: 99 }),
+  ).toEqual([])
 })
 test('sorts by streak descending, then division, then team', () => {
-  const out = computeRitardi(fixtureMatches, { events: ['win', 'draw'], period: 'ft', venue: 'all', min: 1 })
-  expect(out).toEqual([...out].sort((a, b) => b.streak - a.streak || a.div.localeCompare(b.div) || a.team.localeCompare(b.team)))
+  const out = computeRitardi(fixtureMatches, {
+    events: ['win', 'draw'],
+    period: 'ft',
+    venue: 'all',
+    min: 1,
+  })
+  expect(out).toEqual(
+    [...out].sort(
+      (a, b) => b.streak - a.streak || a.div.localeCompare(b.div) || a.team.localeCompare(b.team),
+    ),
+  )
 })
 test('a team with no matches produces no row', () => {
   expect(computeRitardi([], { events: ['win'], period: 'ft', venue: 'all', min: 1 })).toEqual([])
 })
 test('real Serie A data produces a ritardo no longer than the matches played', () => {
   const played = 7 // rounds in tests/fixtures/I1-2627.csv
-  const out = computeRitardi(parseMatches(i1), { events: ['draw'], period: 'ft', venue: 'all', min: 1 })
+  const out = computeRitardi(parseMatches(i1), {
+    events: ['draw'],
+    period: 'ft',
+    venue: 'all',
+    min: 1,
+  })
   expect(Math.max(...out.map((r) => r.streak))).toBeLessThanOrEqual(played)
 })
 test('streakMatches returns the run newest first', () => {
@@ -314,11 +382,11 @@ test('streakMatches returns the run newest first', () => {
 
 `fixtureMatches` is a hand-built `Match[]` local to this test file, with explicit ascending dates, laid out so that:
 
-| Team | oldest → newest | `win` ritardo, venue `all` | venue `home` |
-|---|---|---|---|
-| A | home draw, away win, home draw | 1 | 2 |
-| B | away loss, home win, away win | 0 | 0 |
-| C | home draw, away draw, home draw | 3 | 2 |
+| Team | oldest → newest                 | `win` ritardo, venue `all` | venue `home` |
+| ---- | ------------------------------- | -------------------------- | ------------ |
+| A    | home draw, away win, home draw  | 1                          | 2            |
+| B    | away loss, home win, away win   | 0                          | 0            |
+| C    | home draw, away draw, home draw | 3                          | 2            |
 
 Do not reuse the real CSV for the ordering assertions.
 
@@ -386,7 +454,10 @@ test('nextFixture includes a fixture later today', () => {
 test('requests the bare host and the derived season', async () => {
   const spy = vi.spyOn(globalThis, 'fetch')
   await loadSnapshot(['I1'], new Date(2026, 9, 26))
-  expect(spy).toHaveBeenCalledWith('https://football-data.co.uk/mmz4281/2627/I1.csv', expect.anything())
+  expect(spy).toHaveBeenCalledWith(
+    'https://football-data.co.uk/mmz4281/2627/I1.csv',
+    expect.anything(),
+  )
 })
 ```
 
@@ -434,12 +505,21 @@ Invoke the `frontend-design` skill and write the plan into `docs/design/ritardi-
 ```ts
 test('defaults match the spec', () => {
   expect(parseQuery({})).toEqual({
-    events: EVENTS.map((e) => e.id), period: 'ft', venue: 'all',
-    divs: LEAGUES.map((l) => l.div), min: 6,
+    events: EVENTS.map((e) => e.id),
+    period: 'ft',
+    venue: 'all',
+    divs: LEAGUES.map((l) => l.div),
+    min: 6,
   })
 })
 test('round-trips a narrowed query', () => {
-  const q = { events: ['draw'] as EventId[], period: 'ht' as const, venue: 'home' as const, divs: ['I1'], min: 8 }
+  const q = {
+    events: ['draw'] as EventId[],
+    period: 'ht' as const,
+    venue: 'home' as const,
+    divs: ['I1'],
+    min: 8,
+  }
   expect(parseQuery(Object.fromEntries(toQuery(q)))).toEqual(q)
 })
 test('rejects an unknown event id and falls back to all events', () => {
