@@ -169,5 +169,8 @@ before today are not shown as upcoming.
 
 ### Freshness
 
-The CSVs are fetched on request and cached for 3 hours. The screen states when the data was
+The CSVs are fetched with `{ cache: 'force-cache', next: { revalidate: 10800 } }` — 3 hours.
+**Verified against Next 16.4.3's own docs:** caching is opt-in, so `force-cache` is what enters
+the cache at all and `revalidate` only sets the lifetime. The page reads `searchParams`, a
+request-time API, so without `force-cache` every visitor re-downloads all 21 CSVs. The screen states when the data was
 fetched. If one league's CSV fails, the other leagues still answer and the failed league is named.

@@ -6,7 +6,15 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!src/components/ui", "!next-env.d.ts", "!.next", "!shots", "!public"]
+    "includes": [
+      "**",
+      "!src/components/ui",
+      "!next-env.d.ts",
+      "!.next",
+      "!shots",
+      "!public",
+      "!**/*.md"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

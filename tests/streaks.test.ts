@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
-import type { Match } from '@/lib/matches'
+import { type Match, parseMatches } from '@/lib/matches'
 import { computeRitardi, streakMatches } from '@/lib/streaks'
 
 const m = (
@@ -98,4 +99,28 @@ test('streakMatches returns the run newest first', () => {
   const run = streakMatches(fixtureMatches, 'C', 'win', 'ft', 'all')
   expect(run).toHaveLength(3)
   expect(run[0].date.getTime()).toBeGreaterThan(run[1].date.getTime())
+})
+
+test('real Serie A data produces a ritardo no longer than the matches played', () => {
+  const i1 = parseMatches(readFileSync('tests/fixtures/I1-2627.csv', 'utf8'))
+  const out = computeRitardi(i1, { events: ['draw'], period: 'ft', venue: 'all', min: 1 })
+  expect(out.length).toBeGreaterThan(0)
+  expect(Math.max(...out.map((r) => r.streak))).toBeLessThanOrEqual(7) // 7 rounds in the fixture
+})
+
+test('period ht is carried into the row and changes the result', () => {
+  const ft = computeRitardi(fixtureMatches, {
+    events: ['scores'],
+    period: 'ft',
+    venue: 'all',
+    min: 1,
+  })
+  const ht = computeRitardi(fixtureMatches, {
+    events: ['scores'],
+    period: 'ht',
+    venue: 'all',
+    min: 1,
+  })
+  expect(ht.every((r) => r.period === 'ht')).toBe(true)
+  expect(ht).not.toEqual(ft)
 })
