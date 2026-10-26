@@ -28,9 +28,10 @@ entirely: **size and weight carry it, never a fill behind text.**
 
 ## Color — 5 roles
 
-Dark is the default scheme: the audience opens this at night, and the reference is a dark field.
-Light is the same grid on paper. Defined as CSS custom properties in `globals.css`, consumed via
-Tailwind theme tokens — no bespoke hex inside a component.
+**Neither scheme is the default** (owner's call, 2026-10-26): the screen follows
+`prefers-color-scheme`, and both are tuned as primary — neither is a port of the other. Defined as
+CSS custom properties in `globals.css`, consumed via Tailwind theme tokens — no bespoke hex inside
+a component.
 
 | Role | Dark | Light | Job |
 |---|---|---|---|
@@ -46,25 +47,23 @@ One colour, one meaning: *this is the exceptional one*.
 
 No green, no red. A streak is neither good nor bad until Maio decides which side of it to bet.
 
-## Type — one family, two cuts
+## Type — one family
 
 **Archivo** (Omnibus-Type, Google Fonts) throughout, loaded via `next/font/google` — one family,
-one request. **Verified 2026-10-26:** it is a variable font exposing `font-weight: 400 700` and
-`font-stretch: 62% 125%`, so the two cuts below are axis positions, not a second download.
-("Archivo Expanded" is not a separate Google family; requesting it 404s.)
+one request, weights 400–700. The width axis is **not** loaded: the oversized expanded numeral was
+cut (see below), so nothing needs it.
 
-- **`font-stretch: 125%`, weight 700** — the ritardo numeral only. This is the page-number figure
-  from teletext: wide, flat-sided, unmistakable at 390px.
-- **`font-stretch: 100%`, weights 400–600** — everything else. Team names at 500, chrome at 400.
-- `font-variant-numeric: tabular-nums` on every numeric cell. Non-negotiable: a column of streak
-  figures that does not align is a column you cannot scan, which is the entire failure being fixed.
+- **700** — the ritardo figure and nothing else.
+- **500** — team names. **400** — event code, league tag, dates, chrome.
+- `font-variant-numeric: tabular-nums` on every numeric cell. Non-negotiable, and now load-bearing:
+  with the figure at text size, **alignment is the only thing left encoding magnitude down the
+  column.** A column of streak figures that does not align is a column you cannot scan, which is
+  the entire failure being fixed.
 
-Load as `Archivo({ subsets: ['latin'], axes: ['wdth'] })` so the width axis survives to the browser.
+Scale (390px): figure 15px/1 at weight 700, team 15px/1.2 at 500, event code 13px, league tag 11px.
 
-Scale (390px): numeral 28px/1, team 15px/1.2, event code 13px, league tag 11px. The numeral is
-roughly twice the team name — in a table row that is an unreasonable size, and that is the point.
-
-Sentence case everywhere. Event labels read as Maio says them: *non pareggia*, *non segna 1°T*.
+Sentence case everywhere. On the phone the event column uses the betting shorthand Maio already
+reads — `no X`, `no GF 1T`, `no O2.5` — which also never truncates. Desktop spells them out.
 
 ## Layout
 
@@ -101,8 +100,9 @@ align on their units digit or they do not align at all.
    ^56px      ^flexible       ^86px  ^48px
 ```
 
-The numeral is the left edge of every row, so the eye runs down one column of figures and stops
-where it wants. No horizontal scroll: the event label truncates before the league tag is pushed.
+The figure is the left edge of every row, right-aligned on its units digit, so the eye runs down
+one column and stops where it wants. Rows are 44px — the touch-target floor, since a row opens the
+detail sheet. No horizontal scroll: the event code is chosen so nothing truncates at 390px.
 
 ### 1440 / 1920
 
@@ -117,10 +117,17 @@ RIT  SQUADRA      EVENTO          PERIODO  LEGA   ULTIMA    PROSSIMA
 
 ## The memorable element
 
-**The ritardo numeral.** It is sized like a teletext page number inside a table row, set in the one
-expanded cut in the whole app, and it is the only thing that ever takes the yellow. Everything
-else — filters, headers, tags, dates — is deliberately quiet so that a column of figures is the
-first and last thing you see.
+The oversized teletext numeral was **cut by the owner in favour of density** — roughly 16 rows per
+phone screen instead of 10. That was the plan's hero, so something has to carry its job.
+
+What carries it now: **one yellow figure in an otherwise colourless grid.** With size no longer
+encoding magnitude, `--tail` stops being a flourish and becomes the only magnitude cue on the
+screen, so it is applied strictly — the figure alone, on the rows in the top decile of the visible
+streaks, never the row, never a fill, never anything else in the app. A screen of grey figures with
+two yellow ones tells you where to look before you have read a single word.
+
+The discipline that makes it work is the grid itself: tabular figures, a right-aligned numeric
+column, hairline rules, and nothing competing for attention. Lean is the identity.
 
 ## Copy
 
@@ -136,6 +143,9 @@ Failed league: *Serie B non risponde. Le altre leghe sono aggiornate.* Named, no
 
 Ran the plan against the list of traits that show up regardless of subject. Three things changed:
 
+0. **Cut the oversized numeral** (owner, after reading the options). It was the plan's memorable
+   element; density won. `--tail` inherits its job, which is why the accent rule above is stricter
+   than it was.
 1. **Cut the per-row magnitude bar.** The first draft gave each row a hairline rule whose length
    was its streak relative to the longest on screen. In a list already sorted by streak descending,
    position *is* the ranking — the bar restated it and added a second thing to read per row. Chanel's
