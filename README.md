@@ -166,8 +166,6 @@ src/app/        the single route
 src/components/ filter bar, table, row detail
 scripts/shots/  screenshot + measurement rig
 tests/          unit tests, incl. real CSVs in tests/fixtures/
-docs/spec.md    what it does and why, with the measurements behind each decision
-docs/design/    the screen's design plan
 ```
 
 ## Data
