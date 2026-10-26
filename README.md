@@ -1,6 +1,6 @@
 # la statistica è un'opinione
 
-Finds **statistical rarities in football**: teams on an unusually long run of something *not*
+Finds **statistical rarities in football**: teams on an unusually long run of something _not_
 happening — or happening — across 21 European leagues.
 
 > Quali sono le squadre che non pareggiano da 5 turni?
@@ -8,9 +8,6 @@ happening — or happening — across 21 European leagues.
 
 Those two questions are the whole brief. They came from a friend who could already look up one team
 at a time on someone else's app, but had no way to ask them across every team at once.
-
-The name is a joke on *la matematica non è un'opinione*. It is also a disclaimer: see
-[Honest limits](#honest-limits).
 
 ---
 
@@ -29,7 +26,7 @@ returned 210 rows, of which:
 - The top was a **tie at the season ceiling** — the longest run was 9 everywhere, because only 6–9
   rounds had been played — so the tie-break handed the first page to whichever league was furthest
   into its season.
-- Events that happen *often* (scoring, conceding, over 1.5) returned **zero** rows, because their
+- Events that happen _often_ (scoring, conceding, over 1.5) returned **zero** rows, because their
   runs break constantly. One of the two questions above lives in that group.
 
 So rows are ranked by **how unlikely a run that long is, given how often that event actually
@@ -83,15 +80,15 @@ that touches the network. That is why the maths is unit-tested against real comm
 
 All verified against the live files, not assumed:
 
-| | |
-|---|---|
-| Header row | starts with a UTF-8 BOM (`﻿Div`) — the first column name does not match `"Div"` |
-| Dates | `dd/mm/yyyy`. `new Date("22/08/2026")` is `Invalid Date`; `"05/08/2026"` silently becomes 8 May |
-| Host | `www.` 302-redirects; use the bare host |
-| Postponed rows | present with empty `FTHG`/`FTAG` — read as 0-0 they invent "didn't score" runs |
-| No round column | there is no matchday field; a "turno" is inferred, never read |
-| `fixtures.csv` | holds only the current round, so a missing next match is normal, not an error |
-| Team names | byte-identical between results and fixtures — no normalisation needed |
+|                 |                                                                                                 |
+| --------------- | ----------------------------------------------------------------------------------------------- |
+| Header row      | starts with a UTF-8 BOM (`﻿Div`) — the first column name does not match `"Div"`                 |
+| Dates           | `dd/mm/yyyy`. `new Date("22/08/2026")` is `Invalid Date`; `"05/08/2026"` silently becomes 8 May |
+| Host            | `www.` 302-redirects; use the bare host                                                         |
+| Postponed rows  | present with empty `FTHG`/`FTAG` — read as 0-0 they invent "didn't score" runs                  |
+| No round column | there is no matchday field; a "turno" is inferred, never read                                   |
+| `fixtures.csv`  | holds only the current round, so a missing next match is normal, not an error                   |
+| Team names      | byte-identical between results and fixtures — no normalisation needed                           |
 
 ---
 
@@ -101,7 +98,7 @@ All verified against the live files, not assumed:
 pasted into a chat and reconstructs exactly.
 
 - **evento** — one of 12, or all of them mixed
-- **quando** — whether the run is of the event *not* happening or *happening*
+- **quando** — whether the run is of the event _not_ happening or _happening_
 - **periodo** — full time, or first half only (the CSVs carry half-time goals)
 - **dove** — home, away or both. With a venue filter the kept matches are consecutive among
   themselves: an away win between two home draws does not break a home-only run
@@ -117,7 +114,7 @@ Results (`vince` / `pareggia` / `perde`), goals (`segna` / `subisce` / `goal`), 
 0.5 / 1.5 / 2.5. Each works in both halves and both directions.
 
 Result codes are **team-relative** and deliberately avoid `1` and `2`: in Italian betting those are
-*absolute* (home win, away win), so a team-relative `no 2` would mean the inverse of how a bettor
+_absolute_ (home win, away win), so a team-relative `no 2` would mean the inverse of how a bettor
 reads it on every away row. They are `V`, `X` and `S` instead.
 
 ### Rendering
@@ -131,7 +128,7 @@ skeleton at the real row height. The route builds as `◐ Partial Prerender`.
 ## Honest limits
 
 - **The rarity figure is a ranking heuristic, not a probability.** It treats matches as independent,
-  which they are not — team quality is exactly *why* a run persists. A good defence keeping six clean
+  which they are not — team quality is exactly _why_ a run persists. A good defence keeping six clean
   sheets is not six coin flips. Read `1 su N` as "roughly how surprising", never as odds.
 - **Current season only.** Runs reset in August by design. Until some team anywhere reaches the
   minimum, the default view is empty and says so.
