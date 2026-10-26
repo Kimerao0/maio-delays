@@ -82,7 +82,7 @@ All verified against the live files, not assumed:
 
 |                 |                                                                                                 |
 | --------------- | ----------------------------------------------------------------------------------------------- |
-| Header row      | starts with a UTF-8 BOM (`﻿Div`) — the first column name does not match `"Div"`                 |
+| Header row      | starts with a UTF-8 BOM (`\uFEFFDiv`) — the first column name does not match `"Div"`            |
 | Dates           | `dd/mm/yyyy`. `new Date("22/08/2026")` is `Invalid Date`; `"05/08/2026"` silently becomes 8 May |
 | Host            | `www.` 302-redirects; use the bare host                                                         |
 | Postponed rows  | present with empty `FTHG`/`FTAG` — read as 0-0 they invent "didn't score" runs                  |

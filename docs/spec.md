@@ -156,8 +156,8 @@ before the screen was finished. Across 8 leagues at min 6 it returned 210 rows, 
   6–9 rounds had been played, so the league-name tie-break handed page one to whichever league was
   furthest into its season.
 - `no GF`, `no GS`, `no GG` and `no O2.5` returned **zero** rows — those events occur in 60–95% of
-  matches, so their runs break constantly. Maio's own example (*non segnano nel primo tempo in casa
-  da 6 turni*) lives in that group.
+  matches, so their runs break constantly. Maio's own example (_non segnano nel primo tempo in casa
+  da 6 turni_) lives in that group.
 
 Rarity is `(1 - p)^streak`, where `p` is the event's base rate **computed from this season's own
 matches**, over the same period and venue the query asks for. It is reported as `1 su N`. Brighton

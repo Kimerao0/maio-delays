@@ -9,8 +9,8 @@ Italian football betting statistics, read by a WhatsApp group of friends on thei
 evening. The job of the screen: **scan a ranked list and find the one streak worth a bet**, in
 seconds, without reading every row.
 
-The word *ritardo* is not ours — it is Italian lotto vocabulary. Lotto players have tracked
-*numeri ritardatari*, the numbers not drawn for N draws, off published tables for a century. Maio
+The word _ritardo_ is not ours — it is Italian lotto vocabulary. Lotto players have tracked
+_numeri ritardatari_, the numbers not drawn for N draws, off published tables for a century. Maio
 already has that mental model; the screen should look like the table he expects, not like a
 dashboard.
 
@@ -33,17 +33,17 @@ entirely: **size and weight carry it, never a fill behind text.**
 CSS custom properties in `globals.css`, consumed via Tailwind theme tokens — no bespoke hex inside
 a component.
 
-| Role | Dark | Light | Job |
-|---|---|---|---|
-| `--field` | `#15181C` | `#FFFFFF` | the ground |
-| `--rule` | `#2A2F36` | `#E4E4E7` | column rules and row separators, hairline only |
-| `--figure` | `#F4F4F5` | `#18181B` | the ritardo numeral and team name |
-| `--quiet` | `#8A9099` | `#71717A` | event code, league tag, dates, chrome |
-| `--tail` | `#F2C14E` | `#A16207` | reserved for the longest streaks on screen |
+| Role       | Dark      | Light     | Job                                            |
+| ---------- | --------- | --------- | ---------------------------------------------- |
+| `--field`  | `#15181C` | `#FFFFFF` | the ground                                     |
+| `--rule`   | `#2A2F36` | `#E4E4E7` | column rules and row separators, hairline only |
+| `--figure` | `#F4F4F5` | `#18181B` | the ritardo numeral and team name              |
+| `--quiet`  | `#8A9099` | `#71717A` | event code, league tag, dates, chrome          |
+| `--tail`   | `#F2C14E` | `#A16207` | reserved for the longest streaks on screen     |
 
 `--tail` is the teletext yellow, and it is the only colour in the palette. It appears on the
 numeral of the top rows and nowhere else — not on buttons, not on the filter bar, not as a border.
-One colour, one meaning: *this is the exceptional one*.
+One colour, one meaning: _this is the exceptional one_.
 
 No green, no red. A streak is neither good nor bad until Maio decides which side of it to bet.
 
@@ -144,7 +144,7 @@ that nothing on screen explained `DA`, `1 SU`, or why the order was what it was 
 > Squadre che non registrano un evento da almeno {min} turni, ordinate dalle piu rare.
 
 One line, with the live `min` in it. **No tooltip, no `?` icon, no accordion** — a help affordance
-is a confession that the headers failed, and the identity here is a quiet grid. The word *rare*
+is a confession that the headers failed, and the identity here is a quiet grid. The word _rare_
 carries the meaning of `1 SU`, which otherwise reads as betting odds; `docs/spec.md` forbids the UI
 from implying odds.
 
@@ -153,14 +153,14 @@ were downloaded, not the moment the page rendered** — taken from the cached re
 earliest across the bodies. A stamp that always showed the current minute on three-hour-old data was
 the first thing that review caught. `agg. --:--` when nothing was fetched.
 
-Empty state: *Nessuna squadra arriva a 6 turni. Abbassa il minimo.* — says what happened and what to
+Empty state: _Nessuna squadra arriva a 6 turni. Abbassa il minimo._ — says what happened and what to
 do, in one line, with the number currently in the filter.
 
-Failed league: *Serie B non risponde. Le altre leghe sono aggiornate.* Named, not swallowed. Several:
-*Serie B, Liga non rispondono.* The calendar separately: *Il calendario non risponde.*
+Failed league: _Serie B non risponde. Le altre leghe sono aggiornate._ Named, not swallowed. Several:
+_Serie B, Liga non rispondono._ The calendar separately: _Il calendario non risponde._
 
-Total outage, when **every** selected league failed: *Dati non disponibili. Riprova tra qualche
-minuto.* — and the `min` advice is suppressed, because blaming the user's filter for an outage sends
+Total outage, when **every** selected league failed: _Dati non disponibili. Riprova tra qualche
+minuto._ — and the `min` advice is suppressed, because blaming the user's filter for an outage sends
 them to fix the wrong thing. This replaces the per-league notices rather than adding to them.
 
 ## Review against the generic defaults
@@ -172,7 +172,7 @@ Ran the plan against the list of traits that show up regardless of subject. Thre
    than it was.
 1. **Cut the per-row magnitude bar.** The first draft gave each row a hairline rule whose length
    was its streak relative to the longest on screen. In a list already sorted by streak descending,
-   position *is* the ranking — the bar restated it and added a second thing to read per row. Chanel's
+   position _is_ the ranking — the bar restated it and added a second thing to read per row. Chanel's
    mirror: removed.
 2. **Rejected the cream-and-terracotta ground** this brief would otherwise have landed on, and the
    near-black-plus-acid-green alternative. The dark field here is argued from Televideo and from
