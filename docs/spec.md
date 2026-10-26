@@ -142,11 +142,36 @@ consecutive matches the event did not occur in. If it occurred in the newest mat
 
 ### Table
 
-One row per (team, event) with ritardo ≥ N, **sorted by ritardo descending**, all events mixed, so
-row 1 is the most exceptional thing in Europe whatever event it is. Ties break by league name then
-team name. Every column is sortable.
+One row per (team, event) with ritardo ≥ N, all events mixed, **sorted by rarity descending**, so
+row 1 is the most exceptional thing in Europe whatever event it is. Every column is sortable.
 
-At 390px: four compact columns, 48px rows, no horizontal scroll.
+### Why rarity and not streak length
+
+Raw streak length was the original decision and was **measured against the live CSVs on 2026-10-26**
+before the screen was finished. Across 8 leagues at min 6 it returned 210 rows, of which:
+
+- **106 were `no U0.5`** and 46 `no U1.5` — 72% of the list. A 0-0 happens in 5% of matches, so
+  virtually every team has a long run without one. The least informative event crowded out the rest.
+- The **top was a tie at the season ceiling**: the longest streak was 9 everywhere, because only
+  6–9 rounds had been played, so the league-name tie-break handed page one to whichever league was
+  furthest into its season.
+- `no GF`, `no GS`, `no GG` and `no O2.5` returned **zero** rows — those events occur in 60–95% of
+  matches, so their runs break constantly. Maio's own example (*non segnano nel primo tempo in casa
+  da 6 turni*) lives in that group.
+
+Rarity is `(1 - p)^streak`, where `p` is the event's base rate **computed from this season's own
+matches**, over the same period and venue the query asks for. It is reported as `1 su N`. Brighton
+going 4 matches without conceding (`p = 0.77`) therefore outranks Ajax going 9 without a 0-0.
+
+The base rate uses **Laplace smoothing**, `(hits + 1) / (pairs + 2)`: the raw fraction can be exactly
+0 or 1 on a short early-season sample, and a rate of 1 makes every rarity 0 and every `1 su` value
+infinite.
+
+This treats matches as independent, which they are not — team quality is exactly why a streak
+persists. It is a ranking heuristic, not a probability, and the UI must not present it as odds.
+
+At 390px: four compact columns, 44px rows, no horizontal scroll. The fourth column is `1 SU`;
+`LEGA` returns on wider viewports.
 
 ```
 RIT  SQUADRA     EVENTO     LEGA
@@ -157,7 +182,12 @@ RIT  SQUADRA     EVENTO     LEGA
   7  Burnley     no X       ENG
 ```
 
-Wider viewports add the full event label, the date of the last match and the next match.
+Wider viewports add the full event label, the league, the date of the last match and the next match.
+
+The screen is in Next's Cache Components mode (`cacheComponents: true`, the scaffold's own default),
+so the title and the filter bar render from the prerendered shell and the table streams in behind a
+`<Suspense>` boundary whose fallback is a skeleton at the real 44px row height. Uncached data
+accessed outside a boundary fails the build outright in this mode.
 
 ### Row detail
 
