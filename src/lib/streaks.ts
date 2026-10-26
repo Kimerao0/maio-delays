@@ -1,4 +1,4 @@
-import { type EventId, occurred, type Period, type Side } from '@/lib/events'
+import { type Direction, type EventId, occurred, type Period, type Side } from '@/lib/events'
 import type { Match } from '@/lib/matches'
 
 export type Venue = 'home' | 'away' | 'all'
@@ -8,6 +8,7 @@ export type Ritardo = {
   team: string
   event: EventId
   period: Period
+  direction: Direction
   streak: number
   lastMatch: Date
 }
@@ -15,8 +16,15 @@ export type Ritardo = {
 export type RitardoOpts = {
   events: EventId[]
   period: Period
+  direction: Direction
   venue: Venue
   min: number
+}
+
+// A streak counts matchdays only across all venues; per venue it counts that venue's matches.
+export function unitFor(venue: Venue): string {
+  if (venue === 'all') return 'turni'
+  return 'partite'
 }
 
 // One match seen from one team's point of view.
@@ -52,10 +60,17 @@ function scopedEntries(entries: TeamMatch[], venue: Venue): TeamMatch[] {
     .sort((a, b) => b.match.date.getTime() - a.match.date.getTime())
 }
 
-function runOf(entries: TeamMatch[], event: EventId, period: Period): TeamMatch[] {
+// One walk for both directions: `not` runs on non-occurrences, `yes` runs on occurrences.
+function runOf(
+  entries: TeamMatch[],
+  event: EventId,
+  period: Period,
+  direction: Direction,
+): TeamMatch[] {
+  const target = direction === 'yes'
   const run: TeamMatch[] = []
   for (const entry of entries) {
-    if (occurred(event, entry.match, entry.side, period)) return run
+    if (occurred(event, entry.match, entry.side, period) !== target) return run
     run.push(entry)
   }
   return run
@@ -72,13 +87,14 @@ export function computeRitardi(matches: Match[], opts: RitardoOpts): Ritardo[] {
     if (scoped.length === 0) continue
     const newest = scoped[0].match
     for (const event of opts.events) {
-      const streak = runOf(scoped, event, opts.period).length
+      const streak = runOf(scoped, event, opts.period, opts.direction).length
       if (streak < opts.min) continue
       rows.push({
         div: newest.div,
         team,
         event,
         period: opts.period,
+        direction: opts.direction,
         streak,
         lastMatch: newest.date,
       })
@@ -96,11 +112,12 @@ export function streakMatches(
   team: string,
   event: EventId,
   period: Period,
+  direction: Direction,
   venue: Venue,
 ): Match[] {
   const entries = groupByTeam(matches).get(team)
   if (!entries) return []
-  return matchesOf(runOf(scopedEntries(entries, venue), event, period))
+  return matchesOf(runOf(scopedEntries(entries, venue), event, period, direction))
 }
 
 export function runKey(div: string, team: string, event: EventId): string {
@@ -113,6 +130,7 @@ export function streakRuns(
   matches: Match[],
   rows: Ritardo[],
   period: Period,
+  direction: Direction,
   venue: Venue,
 ): Map<string, Match[]> {
   const scoped = new Map<string, TeamMatch[]>()
@@ -123,7 +141,10 @@ export function streakRuns(
   for (const row of rows) {
     const entries = scoped.get(row.team)
     if (!entries) continue
-    runs.set(runKey(row.div, row.team, row.event), matchesOf(runOf(entries, row.event, period)))
+    runs.set(
+      runKey(row.div, row.team, row.event),
+      matchesOf(runOf(entries, row.event, period, direction)),
+    )
   }
   return runs
 }

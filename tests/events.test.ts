@@ -46,5 +46,6 @@ test('half time reads the half-time goals, not the full-time ones', () => {
 
 test('the catalog holds all 12 events with unique ids and labels', () => {
   expect(EVENTS).toHaveLength(12)
-  expect(new Set(EVENTS.map((e) => e.short)).size).toBe(12)
+  expect(new Set(EVENTS.map((e) => e.shortNot)).size).toBe(12)
+  expect(new Set(EVENTS.map((e) => e.shortYes)).size).toBe(12)
 })

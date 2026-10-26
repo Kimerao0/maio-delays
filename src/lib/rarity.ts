@@ -35,10 +35,16 @@ export function baseRates(matches: Match[], period: Period, venue: Venue): BaseR
   return rates
 }
 
+// A run of non-occurrences repeats the complement of the rate, a run of occurrences the rate
+// itself. Laplace smoothing keeps the rate inside (0, 1), so neither form divides by zero.
+function chanceOf(row: Ritardo, rate: number): number {
+  if (row.direction === 'yes') return rate ** row.streak
+  return (1 - rate) ** row.streak
+}
+
 function oneInOf(row: Ritardo, rates: BaseRates): number {
   const rate = rates.get(row.event) ?? 0
-  const chance = (1 - rate) ** row.streak
-  return Math.round(1 / chance)
+  return Math.round(1 / chanceOf(row, rate))
 }
 
 function compareRanked(a: Ranked, b: Ranked): number {

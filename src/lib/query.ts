@@ -1,10 +1,11 @@
-import { EVENTS, type EventId, type Period } from '@/lib/events'
+import { type Direction, EVENTS, type EventId, type Period } from '@/lib/events'
 import { LEAGUES } from '@/lib/leagues'
 import type { Venue } from '@/lib/streaks'
 
 export type Query = {
   events: EventId[]
   period: Period
+  direction: Direction
   venue: Venue
   divs: string[]
   min: number
@@ -15,10 +16,15 @@ export type RawSearchParams = Record<string, string | string[] | undefined>
 const ALL_EVENTS: EventId[] = EVENTS.map((e) => e.id)
 const ALL_DIVS: string[] = LEAGUES.map((l) => l.div)
 const DEFAULT_PERIOD: Period = 'ft'
+const DEFAULT_DIRECTION: Direction = 'not'
 const DEFAULT_VENUE: Venue = 'all'
-const DEFAULT_MIN = 6
-const MIN_STREAK = 1
-const MAX_STREAK = 60
+const DEFAULT_MIN = 12
+
+export const MIN_STREAK = 1
+export const MAX_STREAK = 60
+
+// The URL says it in Italian, the way the filter reads: `occ=si` or `occ=no`.
+const OCC: Record<Direction, string> = { not: 'no', yes: 'si' }
 
 function toList(value: string | string[] | undefined): string[] {
   if (value === undefined) return []
@@ -40,6 +46,12 @@ function readPeriod(sp: RawSearchParams): Period {
   const [value] = toList(sp.period)
   if (value === 'ft' || value === 'ht') return value
   return DEFAULT_PERIOD
+}
+
+function readDirection(sp: RawSearchParams): Direction {
+  const [value] = toList(sp.occ)
+  if (value === OCC.yes) return 'yes'
+  return DEFAULT_DIRECTION
 }
 
 function readVenue(sp: RawSearchParams): Venue {
@@ -66,6 +78,7 @@ export function parseQuery(sp: RawSearchParams): Query {
   return {
     events: readEvents(sp),
     period: readPeriod(sp),
+    direction: readDirection(sp),
     venue: readVenue(sp),
     divs: readDivs(sp),
     min: readMin(sp),
@@ -83,6 +96,7 @@ export function toQuery(q: Query): URLSearchParams {
   const min = clampMin(q.min)
   if (!sameList(events, ALL_EVENTS)) for (const id of events) params.append('events', id)
   if (q.period !== DEFAULT_PERIOD) params.set('period', q.period)
+  if (q.direction !== DEFAULT_DIRECTION) params.set('occ', OCC[q.direction])
   if (q.venue !== DEFAULT_VENUE) params.set('venue', q.venue)
   if (!sameList(divs, ALL_DIVS)) for (const div of divs) params.append('divs', div)
   if (min !== DEFAULT_MIN) params.set('min', String(min))

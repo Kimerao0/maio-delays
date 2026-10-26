@@ -2,7 +2,14 @@
 
 import { cn } from 'cn'
 import { useSearchParams } from 'next/navigation'
-import type { FocusEvent, KeyboardEvent, ReactElement } from 'react'
+import {
+  type FocusEvent,
+  type KeyboardEvent,
+  type ReactElement,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useFilterNav } from '@/components/filter-shell'
 import {
   Select,
@@ -12,12 +19,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { EVENTS, type EventId } from '@/lib/events'
+import { EVENTS, type EventId, eventLabel } from '@/lib/events'
 import { LEAGUES } from '@/lib/leagues'
-import { type Query, toQuery } from '@/lib/query'
-import type { Venue } from '@/lib/streaks'
+import { MAX_STREAK, MIN_STREAK, type Query, toQuery } from '@/lib/query'
+import { unitFor, type Venue } from '@/lib/streaks'
 
 const ALL = 'tutti'
+
+// A burst of taps on the stepper has to settle into one navigation, not one per tap.
+const IDLE_MS = 400
 
 // The sort lives outside Query, so these are the params a filter change has to carry over by hand.
 const SORT_PARAMS = ['sort', 'dir'] as const
@@ -29,12 +39,15 @@ const VENUES: readonly { value: Venue; label: string }[] = [
 ]
 
 // Shared by the bar and its placeholder, so the controls land without moving the table.
+// The sum per line is what keeps the bar at two rows inside the 358px phone frame: 136+104+96
+// wraps after `quando`, 120+120+100 after the stepper.
 const WIDTHS = {
   evento: 'w-[136px]',
   periodo: 'w-[104px]',
+  quando: 'w-[96px]',
   dove: 'w-[120px]',
   leghe: 'w-[120px]',
-  min: 'w-[88px]',
+  'turni minimo': 'w-[100px]',
 } as const
 
 const BAR = 'flex flex-wrap gap-x-2 gap-y-3 pt-2'
@@ -52,9 +65,19 @@ const ITEM = 'min-h-11 text-figure focus:bg-rule data-highlighted:bg-rule'
 // Selected reads as figure, unselected as quiet: the state is carried by colour, never by a fill.
 const TOGGLE = 'h-11 flex-1 text-[13px] text-quiet aria-pressed:text-figure disabled:opacity-100'
 
-function eventLabel(value: string | null): string {
-  if (value === ALL || value === null) return 'tutti'
-  return EVENTS.find((event) => event.id === value)?.label ?? 'tutti'
+// Same rule for the bound: a stepper that cannot go further reads quiet, and never fills.
+const STEP = 'h-11 w-[30px] shrink-0 text-[15px] text-figure disabled:text-quiet'
+
+const VALUE = 'h-11 min-w-0 flex-1 text-center text-[15px] text-figure tabular-nums'
+
+// The native spinners both duplicate the buttons and eat the width the value needs.
+const NO_SPINNER = '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none'
+
+// The event reads bare here, the negation is the `quando` toggle's job: `vince` + `non`.
+function selectedEventLabel(value: string | null): string {
+  const event = EVENTS.find((candidate) => candidate.id === value)
+  if (!event) return 'tutti'
+  return eventLabel(event.id, 'yes')
 }
 
 function eventsFor(value: string | null): EventId[] {
@@ -99,6 +122,92 @@ export function FiltersSkeleton() {
   )
 }
 
+type MinStepperProps = {
+  value: number
+  label: string
+  pending: boolean
+  onCommit: (min: number) => void
+}
+
+// The value is local so a tap acknowledges in the same frame, and the push waits for the burst to
+// end: five taps are one navigation and one history entry. Re-arming on every render keeps the
+// pushed query current if another filter moves meanwhile, and `committed` is what stops a
+// re-render from pushing the same value twice. Keyed on the query's own min by the caller, so Back
+// and a server answer both reset it.
+function MinStepper({ value, label, pending, onCommit }: MinStepperProps) {
+  const [min, setMin] = useState(value)
+  const committed = useRef(value)
+
+  useEffect(() => {
+    if (min === committed.current) return
+    const timer = setTimeout(() => {
+      committed.current = min
+      onCommit(min)
+    }, IDLE_MS)
+    return () => clearTimeout(timer)
+  }, [min, onCommit])
+
+  function nudge(step: number): void {
+    setMin((current) => Math.min(MAX_STREAK, Math.max(MIN_STREAK, current + step)))
+  }
+
+  // Typing keeps its own contract: the stepper is for nudging, Enter and blur commit at once.
+  function commit(raw: string): void {
+    const typed = Number.parseInt(raw, 10)
+    if (!Number.isInteger(typed) || typed === min) return
+    committed.current = typed
+    setMin(typed)
+    onCommit(typed)
+  }
+
+  function onBlur(blur: FocusEvent<HTMLInputElement>): void {
+    commit(blur.currentTarget.value)
+  }
+
+  function onKeyDown(press: KeyboardEvent<HTMLInputElement>): void {
+    if (press.key !== 'Enter') return
+    commit(press.currentTarget.value)
+  }
+
+  return (
+    <Field label={label}>
+      <div className={cn('flex h-11 rounded-lg border border-rule', WIDTHS['turni minimo'])}>
+        <button
+          type="button"
+          aria-label="diminuisci"
+          disabled={pending || min <= MIN_STREAK}
+          onClick={() => nudge(-1)}
+          className={cn(STEP, FOCUS)}
+        >
+          −
+        </button>
+        <input
+          key={min}
+          type="number"
+          inputMode="numeric"
+          min={MIN_STREAK}
+          max={MAX_STREAK}
+          disabled={pending}
+          defaultValue={min}
+          aria-label={label}
+          onBlur={onBlur}
+          onKeyDown={onKeyDown}
+          className={cn(VALUE, NO_SPINNER, FOCUS)}
+        />
+        <button
+          type="button"
+          aria-label="aumenta"
+          disabled={pending || min >= MAX_STREAK}
+          onClick={() => nudge(1)}
+          className={cn(STEP, FOCUS)}
+        >
+          +
+        </button>
+      </div>
+    </Field>
+  )
+}
+
 export function Filters({ query }: { query: Query }) {
   const searchParams = useSearchParams()
   const { pending, navigate } = useFilterNav()
@@ -126,22 +235,14 @@ export function Filters({ query }: { query: Query }) {
     apply({ ...query, period })
   }
 
-  function commitMin(value: string): void {
-    const min = Number.parseInt(value, 10)
-    if (!Number.isInteger(min) || min === query.min) return
-    apply({ ...query, min })
-  }
-
-  function onMinBlur(blur: FocusEvent<HTMLInputElement>): void {
-    commitMin(blur.currentTarget.value)
-  }
-
-  function onMinKeyDown(press: KeyboardEvent<HTMLInputElement>): void {
-    if (press.key !== 'Enter') return
-    commitMin(press.currentTarget.value)
+  function applyDirection(value: string[]): void {
+    const [direction] = value
+    if (direction !== 'not' && direction !== 'yes') return
+    apply({ ...query, direction })
   }
 
   const selectedEvent = query.events.length === EVENTS.length ? ALL : query.events[0]
+  const minLabel = `${unitFor(query.venue)} minimo`
 
   return (
     <div
@@ -155,7 +256,7 @@ export function Filters({ query }: { query: Query }) {
       <Field label="evento">
         <Select value={selectedEvent} onValueChange={applyEvent} disabled={pending}>
           <SelectTrigger aria-label="evento" className={cn(CONTROL, FOCUS, WIDTHS.evento)}>
-            <SelectValue>{(value: string | null) => eventLabel(value)}</SelectValue>
+            <SelectValue>{(value: string | null) => selectedEventLabel(value)}</SelectValue>
           </SelectTrigger>
           <SelectContent className={POPUP}>
             <SelectItem value={ALL} className={ITEM}>
@@ -163,7 +264,7 @@ export function Filters({ query }: { query: Query }) {
             </SelectItem>
             {EVENTS.map((event) => (
               <SelectItem key={event.id} value={event.id} className={ITEM}>
-                {event.label}
+                {eventLabel(event.id, 'yes')}
               </SelectItem>
             ))}
           </SelectContent>
@@ -187,6 +288,28 @@ export function Filters({ query }: { query: Query }) {
             className={cn(TOGGLE, FOCUS, 'border-l border-rule')}
           >
             1°T
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </Field>
+
+      {/* Reads as a sentence with the event: `vince` plus `non` is a run without a win. */}
+      <Field label="quando">
+        <ToggleGroup
+          spacing={0}
+          disabled={pending}
+          value={[query.direction]}
+          onValueChange={applyDirection}
+          className={cn('h-11 rounded-lg border border-rule', WIDTHS.quando)}
+        >
+          <ToggleGroupItem value="not" aria-label="non accade" className={cn(TOGGLE, FOCUS)}>
+            non
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="yes"
+            aria-label="accade"
+            className={cn(TOGGLE, FOCUS, 'border-l border-rule')}
+          >
+            sì
           </ToggleGroupItem>
         </ToggleGroup>
       </Field>
@@ -230,25 +353,13 @@ export function Filters({ query }: { query: Query }) {
         </Select>
       </Field>
 
-      <Field label="min">
-        <input
-          key={query.min}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={60}
-          disabled={pending}
-          defaultValue={query.min}
-          aria-label="ritardo minimo"
-          onBlur={onMinBlur}
-          onKeyDown={onMinKeyDown}
-          className={cn(
-            'h-11 rounded-lg border border-rule px-3 text-[15px] text-figure tabular-nums',
-            FOCUS,
-            WIDTHS.min,
-          )}
-        />
-      </Field>
+      <MinStepper
+        key={query.min}
+        value={query.min}
+        label={minLabel}
+        pending={pending}
+        onCommit={(min) => apply({ ...query, min })}
+      />
     </div>
   )
 }

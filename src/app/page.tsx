@@ -6,7 +6,7 @@ import { leagueByDiv } from '@/lib/leagues'
 import { parseQuery, type RawSearchParams } from '@/lib/query'
 import { baseRates, rankByRarity } from '@/lib/rarity'
 import { loadSnapshot } from '@/lib/source'
-import { computeRitardi, streakRuns } from '@/lib/streaks'
+import { computeRitardi, streakRuns, unitFor } from '@/lib/streaks'
 
 type Params = Promise<RawSearchParams>
 
@@ -50,9 +50,17 @@ async function Freshness({ searchParams }: { searchParams: Params }) {
   return <p>agg. {stamp(snapshot.fetchedAt)}</p>
 }
 
-// Only the numeral is request-time, so the sentence itself prerenders with the rest of the shell.
-async function MinTurns({ searchParams }: { searchParams: Params }) {
-  return <>{parseQuery(await searchParams).min}</>
+// Only the verb, the count and its unit are request-time, so the rest of the sentence prerenders
+// with the shell. With `occ=si` the run is of the event itself, and the "non" would invert it.
+async function Verb({ searchParams }: { searchParams: Params }) {
+  const query = parseQuery(await searchParams)
+  if (query.direction === 'yes') return <>registrano</>
+  return <>non registrano</>
+}
+
+async function MinCount({ searchParams }: { searchParams: Params }) {
+  const query = parseQuery(await searchParams)
+  return <>{`${query.min} ${unitFor(query.venue)}`}</>
 }
 
 async function FilterBar({ searchParams }: { searchParams: Params }) {
@@ -75,11 +83,12 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
   const rows = computeRitardi(snapshot.matches, {
     events: query.events,
     period: query.period,
+    direction: query.direction,
     venue: query.venue,
     min: query.min,
   })
   const ranked = rankByRarity(rows, baseRates(snapshot.matches, query.period, query.venue))
-  const runs = streakRuns(snapshot.matches, rows, query.period, query.venue)
+  const runs = streakRuns(snapshot.matches, rows, query.period, query.direction, query.venue)
   const messages = notices(snapshot.failed)
 
   return (
@@ -93,7 +102,7 @@ async function RitardiSection({ searchParams }: { searchParams: Params }) {
       )}
       {ranked.length === 0 && (
         <p className={`${FRAME} py-8 text-[13px] text-quiet`}>
-          Nessuna squadra arriva a {query.min} turni. Abbassa il minimo.
+          Nessuna squadra arriva a {query.min} {unitFor(query.venue)}. Abbassa il minimo.
         </p>
       )}
       {ranked.length > 0 && (
@@ -118,18 +127,22 @@ export default function Page({ searchParams }: { searchParams: Params }) {
   return (
     <main className="flex flex-1 flex-col gap-4 py-4">
       <div className={`${FRAME} flex flex-col gap-1`}>
-        <div className="flex h-7 items-center justify-between text-[15px] text-quiet">
-          <h1>ritardi</h1>
+        <div className="flex h-7 items-center justify-between gap-3 text-[15px] text-quiet">
+          <h1>la statistica è un’opinione</h1>
           <Suspense fallback={<p>agg. --:--</p>}>
             <Freshness searchParams={searchParams} />
           </Suspense>
         </div>
         <p className="text-[13px] text-quiet">
-          Squadre che non registrano un evento da almeno{' '}
-          <Suspense fallback={<span className="tabular-nums">--</span>}>
-            <MinTurns searchParams={searchParams} />
+          Squadre che{' '}
+          <Suspense fallback={<>non registrano</>}>
+            <Verb searchParams={searchParams} />
           </Suspense>{' '}
-          turni, ordinate dalle più rare.
+          un evento da almeno{' '}
+          <Suspense fallback={<span className="tabular-nums">--</span>}>
+            <MinCount searchParams={searchParams} />
+          </Suspense>
+          , ordinate dalle più rare.
         </p>
       </div>
       <FilterShell

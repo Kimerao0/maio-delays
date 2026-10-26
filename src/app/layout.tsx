@@ -10,7 +10,7 @@ const archivo = Archivo({
 })
 
 export const metadata: Metadata = {
-  title: 'ritardi',
+  title: 'la statistica è un’opinione',
 }
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

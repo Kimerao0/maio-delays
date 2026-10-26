@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import { EVENTS, type EventId, type Period } from '@/lib/events'
+import { eventLabel, type Period } from '@/lib/events'
 import type { Fixture, Match } from '@/lib/matches'
 import type { Ranked } from '@/lib/rarity'
 
@@ -19,10 +19,6 @@ const TRIGGER =
   'h-11 cursor-pointer outline-offset-[-2px] focus-visible:outline-2 focus-visible:outline-figure'
 
 const ENTRY = 'flex h-11 items-center gap-3 border-b border-rule text-[13px]'
-
-function eventLabel(id: EventId): string {
-  return EVENTS.find((event) => event.id === id)?.label ?? id
-}
 
 function periodLabel(period: Period): string {
   if (period === 'ht') return '1°T'
@@ -77,7 +73,8 @@ export function RowDetail({ row, run, next, children }: RowDetailProps) {
         <SheetHeader className="gap-1">
           <SheetTitle className="text-[15px] font-medium text-figure">{row.team}</SheetTitle>
           <SheetDescription className="text-[13px] text-quiet">
-            {eventLabel(row.event)} · {periodLabel(row.period)} · da {row.streak} turni
+            {eventLabel(row.event, row.direction)} · {periodLabel(row.period)} · da {row.streak}{' '}
+            turni
           </SheetDescription>
         </SheetHeader>
 

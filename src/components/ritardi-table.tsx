@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { EVENTS, type EventDef, type EventId, type Period } from '@/lib/events'
+import { eventLabel, eventShort, type Period } from '@/lib/events'
 import { leagueByDiv } from '@/lib/leagues'
 import type { Fixture, Match } from '@/lib/matches'
 import { type Query, type RawSearchParams, toQuery } from '@/lib/query'
@@ -42,8 +42,6 @@ const ARIA_SORT: Record<Dir, 'ascending' | 'descending'> = {
 
 const ARROW: Record<Dir, string> = { asc: '↑', desc: '↓' }
 
-const EVENT_BY_ID: ReadonlyMap<string, EventDef> = new Map(EVENTS.map((e) => [e.id, e]))
-
 const DAY = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit' })
 
 const DECIMAL = new Intl.NumberFormat('it-IT', {
@@ -63,12 +61,12 @@ const HEAD = 'h-10 bg-field text-[11px] font-normal text-quiet'
 
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
-function eventLabel(id: EventId): string {
-  return EVENT_BY_ID.get(id)?.label ?? id
+function rowLabel(row: Ranked): string {
+  return eventLabel(row.event, row.direction)
 }
 
 function eventCode(row: Ranked): string {
-  const short = EVENT_BY_ID.get(row.event)?.short ?? row.event
+  const short = eventShort(row.event, row.direction)
   if (row.period === 'ht') return `${short} 1T`
   return short
 }
@@ -134,7 +132,7 @@ function sortHref(query: Query, column: SortKey, sort: Sort): string {
 function compare(key: SortKey, a: Ranked, b: Ranked): number {
   if (key === 'raro') return a.oneIn - b.oneIn
   if (key === 'squadra') return a.team.localeCompare(b.team)
-  if (key === 'evento') return eventLabel(a.event).localeCompare(eventLabel(b.event))
+  if (key === 'evento') return rowLabel(a).localeCompare(rowLabel(b))
   if (key === 'lega') return leagueTag(a.div).localeCompare(leagueTag(b.div))
   if (key === 'ultima') return a.lastMatch.getTime() - b.lastMatch.getTime()
   return a.streak - b.streak
@@ -224,7 +222,7 @@ function Row({ row, tail, run, next }: RowProps) {
       </TableCell>
       <TableCell className="text-[13px] text-quiet">
         <span className="md:hidden">{eventCode(row)}</span>
-        <span className="hidden md:inline">{eventLabel(row.event)}</span>
+        <span className="hidden md:inline">{rowLabel(row)}</span>
       </TableCell>
       <TableCell className="text-[11px] text-quiet md:hidden">{leagueTag(row.div)}</TableCell>
       <TableCell className="hidden text-[13px] text-quiet md:table-cell">

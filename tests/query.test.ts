@@ -7,14 +7,22 @@ test('defaults match the spec', () => {
   expect(parseQuery({})).toEqual({
     events: EVENTS.map((e) => e.id),
     period: 'ft',
+    direction: 'not',
     venue: 'all',
     divs: LEAGUES.map((l) => l.div),
-    min: 6,
+    min: 12,
   })
 })
 
 test('round-trips a narrowed query', () => {
-  const q: Query = { events: ['draw'], period: 'ht', venue: 'home', divs: ['I1'], min: 8 }
+  const q: Query = {
+    events: ['draw'],
+    period: 'ht',
+    direction: 'yes',
+    venue: 'home',
+    divs: ['I1'],
+    min: 8,
+  }
   expect(parseQuery(Object.fromEntries(toQuery(q)))).toEqual(q)
 })
 
@@ -31,6 +39,7 @@ test('round-trips a multi-value query through a real URLSearchParams', () => {
   const q: Query = {
     events: ['win', 'btts'],
     period: 'ht',
+    direction: 'yes',
     venue: 'away',
     divs: ['I1', 'E0', 'D1'],
     min: 10,
@@ -45,6 +54,7 @@ test('canonicalises a caller-ordered list so the round-trip still holds', () => 
   const q: Query = {
     events: ['btts', 'win', 'draw'],
     period: 'ft',
+    direction: 'not',
     venue: 'all',
     divs: ['SP1', 'I1', 'E0'],
     min: 6,

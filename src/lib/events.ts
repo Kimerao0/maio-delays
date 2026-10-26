@@ -17,22 +17,92 @@ export type EventId =
 export type Period = 'ft' | 'ht'
 export type Side = 'home' | 'away'
 
-export type EventDef = { id: EventId; label: string; short: string }
+// Which way a run points: a run of non-occurrences, or a run of occurrences.
+export type Direction = 'not' | 'yes'
 
+export type EventDef = {
+  id: EventId
+  labelNot: string
+  labelYes: string
+  shortNot: string
+  shortYes: string
+}
+
+// Both directions are spelled out rather than composed: Italian negates `btts` as `no goal`, never
+// as `non goal`, so a `non ` prefix rule would be wrong for it.
 export const EVENTS: readonly EventDef[] = [
-  { id: 'win', label: 'non vince', short: 'no V' },
-  { id: 'draw', label: 'non pareggia', short: 'no X' },
-  { id: 'loss', label: 'non perde', short: 'no S' },
-  { id: 'scores', label: 'non segna', short: 'no GF' },
-  { id: 'concedes', label: 'non subisce', short: 'no GS' },
-  { id: 'btts', label: 'no goal', short: 'no GG' },
-  { id: 'over05', label: 'non over 0.5', short: 'no O0.5' },
-  { id: 'over15', label: 'non over 1.5', short: 'no O1.5' },
-  { id: 'over25', label: 'non over 2.5', short: 'no O2.5' },
-  { id: 'under05', label: 'non under 0.5', short: 'no U0.5' },
-  { id: 'under15', label: 'non under 1.5', short: 'no U1.5' },
-  { id: 'under25', label: 'non under 2.5', short: 'no U2.5' },
+  { id: 'win', labelNot: 'non vince', labelYes: 'vince', shortNot: 'no V', shortYes: 'V' },
+  { id: 'draw', labelNot: 'non pareggia', labelYes: 'pareggia', shortNot: 'no X', shortYes: 'X' },
+  { id: 'loss', labelNot: 'non perde', labelYes: 'perde', shortNot: 'no S', shortYes: 'S' },
+  { id: 'scores', labelNot: 'non segna', labelYes: 'segna', shortNot: 'no GF', shortYes: 'GF' },
+  {
+    id: 'concedes',
+    labelNot: 'non subisce',
+    labelYes: 'subisce',
+    shortNot: 'no GS',
+    shortYes: 'GS',
+  },
+  { id: 'btts', labelNot: 'no goal', labelYes: 'goal', shortNot: 'no GG', shortYes: 'GG' },
+  {
+    id: 'over05',
+    labelNot: 'non over 0.5',
+    labelYes: 'over 0.5',
+    shortNot: 'no O0.5',
+    shortYes: 'O0.5',
+  },
+  {
+    id: 'over15',
+    labelNot: 'non over 1.5',
+    labelYes: 'over 1.5',
+    shortNot: 'no O1.5',
+    shortYes: 'O1.5',
+  },
+  {
+    id: 'over25',
+    labelNot: 'non over 2.5',
+    labelYes: 'over 2.5',
+    shortNot: 'no O2.5',
+    shortYes: 'O2.5',
+  },
+  {
+    id: 'under05',
+    labelNot: 'non under 0.5',
+    labelYes: 'under 0.5',
+    shortNot: 'no U0.5',
+    shortYes: 'U0.5',
+  },
+  {
+    id: 'under15',
+    labelNot: 'non under 1.5',
+    labelYes: 'under 1.5',
+    shortNot: 'no U1.5',
+    shortYes: 'U1.5',
+  },
+  {
+    id: 'under25',
+    labelNot: 'non under 2.5',
+    labelYes: 'under 2.5',
+    shortNot: 'no U2.5',
+    shortYes: 'U2.5',
+  },
 ]
+
+// A table of hundreds of rows asks for a label per row, so the lookup is built once.
+const EVENT_BY_ID: ReadonlyMap<EventId, EventDef> = new Map(EVENTS.map((e) => [e.id, e]))
+
+export function eventLabel(id: EventId, dir: Direction): string {
+  const event = EVENT_BY_ID.get(id)
+  if (!event) return id
+  if (dir === 'yes') return event.labelYes
+  return event.labelNot
+}
+
+export function eventShort(id: EventId, dir: Direction): string {
+  const event = EVENT_BY_ID.get(id)
+  if (!event) return id
+  if (dir === 'yes') return event.shortYes
+  return event.shortNot
+}
 
 function goals(match: Match, side: Side, period: Period): { own: number; opp: number } {
   const home = period === 'ft' ? match.ftHome : match.htHome
@@ -41,7 +111,7 @@ function goals(match: Match, side: Side, period: Period): { own: number; opp: nu
   return { own: away, opp: home }
 }
 
-// Plain occurrence: the "non ..." labels are the UI framing, the streak layer inverts this.
+// Plain occurrence: the direction is the UI framing, and the streak layer is what applies it.
 export function occurred(id: EventId, match: Match, side: Side, period: Period): boolean {
   const { own, opp } = goals(match, side, period)
   const total = own + opp

@@ -90,26 +90,38 @@ is **not a match** and is dropped (postponed or not yet played).
 
 ### Event
 
-An event either **occurred** or **did not occur** in a match, from one team's point of view. The 12
-events, in UI order:
+An event either **occurred** or **did not occur** in a match, from one team's point of view. Each
+event carries the copy for both directions (see below), long and short. The 12 events, in UI order:
 
-| Id         | Etichetta     | Codice    | Occurs when           |
-| ---------- | ------------- | --------- | --------------------- |
-| `win`      | non vince     | `no V`    | the team won          |
-| `draw`     | non pareggia  | `no X`    | the match was drawn   |
-| `loss`     | non perde     | `no S`    | the team lost         |
-| `scores`   | non segna     | `no GF`   | the team scored ≥ 1   |
-| `concedes` | non subisce   | `no GS`   | the team conceded ≥ 1 |
-| `btts`     | no goal       | `no GG`   | both teams scored     |
-| `over05`   | non over 0.5  | `no O0.5` | total goals > 0.5     |
-| `over15`   | non over 1.5  | `no O1.5` | total goals > 1.5     |
-| `over25`   | non over 2.5  | `no O2.5` | total goals > 2.5     |
-| `under05`  | non under 0.5 | `no U0.5` | total goals < 0.5     |
-| `under15`  | non under 1.5 | `no U1.5` | total goals < 1.5     |
-| `under25`  | non under 2.5 | `no U2.5` | total goals < 2.5     |
+| Id         | Etichetta `non` | Etichetta `sì` | Codice `non` | Codice `sì` | Occurs when           |
+| ---------- | --------------- | -------------- | ------------ | ----------- | --------------------- |
+| `win`      | non vince       | vince          | `no V`       | `V`         | the team won          |
+| `draw`     | non pareggia    | pareggia       | `no X`       | `X`         | the match was drawn   |
+| `loss`     | non perde       | perde          | `no S`       | `S`         | the team lost         |
+| `scores`   | non segna       | segna          | `no GF`      | `GF`        | the team scored ≥ 1   |
+| `concedes` | non subisce     | subisce        | `no GS`      | `GS`        | the team conceded ≥ 1 |
+| `btts`     | no goal         | goal           | `no GG`      | `GG`        | both teams scored     |
+| `over05`   | non over 0.5    | over 0.5       | `no O0.5`    | `O0.5`      | total goals > 0.5     |
+| `over15`   | non over 1.5    | over 1.5       | `no O1.5`    | `O1.5`      | total goals > 1.5     |
+| `over25`   | non over 2.5    | over 2.5       | `no O2.5`    | `O2.5`      | total goals > 2.5     |
+| `under05`  | non under 0.5   | under 0.5      | `no U0.5`    | `U0.5`      | total goals < 0.5     |
+| `under15`  | non under 1.5   | under 1.5      | `no U1.5`    | `U1.5`      | total goals < 1.5     |
+| `under25`  | non under 2.5   | under 2.5      | `no U2.5`    | `U2.5`      | total goals < 2.5     |
 
-Both directions of each pair are present on purpose: the _ritardo_ of `concedes` is a clean-sheet
-run, and the _ritardo_ of `under25` is a run of overs. No separate "clean sheet" event is needed.
+Both directions are stored, never composed with a `non ` prefix: Italian negates `btts` as
+_no goal_, never as _non goal_.
+
+### Direction
+
+A run counts either matches where the event **did not** occur (`not`) or matches where it **did**
+(`yes`). The friend's Shiny app offers the same choice as _Times Not Occurred / Times Occurred_.
+
+The goal and over/under pairs do not need it — a `non subisce` run already _is_ a clean-sheet run,
+and a `non under 2.5` run is a run of overs. The result events do: _vince da 5_ means neither a draw
+nor a loss for 5 matches, two events at once, which no single `non` run expresses.
+
+The UI splits the choice in two, so the filter bar reads as a sentence: **evento** names the event
+bare (`vince`) and **quando** carries the direction (`non` / `sì`).
 
 ### Period
 
@@ -125,8 +137,8 @@ among themselves — the away matches in between are skipped, not treated as bre
 ### Ritardo (streak)
 
 Walk the team's matches, newest first, within the chosen venue. The _ritardo_ is how many
-consecutive matches the event did not occur in. If it occurred in the newest match, the ritardo is
-0. A team with no matches has no row.
+consecutive matches match the direction — did not occur with `non`, occurred with `sì`. If the walk
+breaks on the newest match, the ritardo is 0. A team with no matches has no row.
 
 ## The surface
 
@@ -134,11 +146,16 @@ consecutive matches the event did not occur in. If it occurred in the newest mat
 
 ### Filters
 
-- **Evento** — `tutti` (default) or one of the 12.
+- **Evento** — `tutti` (default) or one of the 12, named bare (`vince`, not `non vince`).
 - **Periodo** — `ft` (default) / `ht`.
+- **Quando** — `non` (default) / `sì`, the direction. URL param `occ`, values `no` / `si`.
 - **Dove** — `tutte` (default) / `casa` / `trasferta`.
 - **Leghe** — multi-select, `tutte` by default.
-- **Ritardo minimo** — number, **default 6**.
+- **Ritardo minimo** — number, **default 12**, clamped to 1–60. A stepper: `−  12  +`, with the
+  value still typeable. A burst of taps is debounced into one navigation, so Back stays usable.
+
+At 390px the six controls are two rows of three, inside the 358px frame: `evento` `periodo`
+`quando`, then `dove` `leghe` `ritardo minimo`.
 
 ### Table
 
@@ -159,16 +176,28 @@ before the screen was finished. Across 8 leagues at min 6 it returned 210 rows, 
   matches, so their runs break constantly. Maio's own example (_non segnano nel primo tempo in casa
   da 6 turni_) lives in that group.
 
-Rarity is `(1 - p)^streak`, where `p` is the event's base rate **computed from this season's own
-matches**, over the same period and venue the query asks for. It is reported as `1 su N`. Brighton
-going 4 matches without conceding (`p = 0.77`) therefore outranks Ajax going 9 without a 0-0.
+Rarity is the chance of the run repeating, where `p` is the event's base rate **computed from this
+season's own matches**, over the same period and venue the query asks for:
+
+- `non` — `(1 - p)^streak`, the run is of non-occurrences.
+- `sì` — `p^streak`, the run is of the event itself.
+
+It is reported as `1 su N`. Brighton going 4 matches without conceding (`p = 0.77`) therefore
+outranks Ajax going 9 without a 0-0, and in the other direction 5 straight 0-0s outrank 5 straight
+matches with a goal.
 
 The base rate uses **Laplace smoothing**, `(hits + 1) / (pairs + 2)`: the raw fraction can be exactly
-0 or 1 on a short early-season sample, and a rate of 1 makes every rarity 0 and every `1 su` value
-infinite.
+0 or 1 on a short early-season sample, and either bound makes one of the two chances 0 and its
+`1 su` value infinite. Smoothed, every rate stays strictly inside (0, 1) and neither form diverges.
 
 This treats matches as independent, which they are not — team quality is exactly why a streak
 persists. It is a ranking heuristic, not a probability, and the UI must not present it as odds.
+
+**Why the minimum defaults to 12.** Also measured, against the live data: min 6 returns 543 rows,
+min 10 returns 97, min 12 returns 35, min 14 returns none — the deepest run in Europe is 13. 543
+rows is roughly forty phone screens, 35 is three. Early in a season the default view is therefore
+empty until some team anywhere reaches 12, and the empty state (_Abbassa il minimo_) is what
+recovers it.
 
 At 390px: four compact columns, 44px rows, no horizontal scroll. The fourth column is `1 SU`;
 `LEGA` returns on wider viewports.

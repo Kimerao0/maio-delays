@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
-import { EVENTS } from '@/lib/events'
+import { type Direction, EVENTS, type EventId } from '@/lib/events'
 import { parseMatches } from '@/lib/matches'
 import { baseRates, rankByRarity } from '@/lib/rarity'
 import { computeRitardi, type Ritardo } from '@/lib/streaks'
@@ -40,6 +40,7 @@ test('a short run of a rare-to-avoid event outranks a long run of a common one',
       team: 'Ajax',
       event: 'under05',
       period: 'ft',
+      direction: 'not',
       streak: 9,
       lastMatch: new Date(2026, 9, 18),
     },
@@ -48,11 +49,48 @@ test('a short run of a rare-to-avoid event outranks a long run of a common one',
       team: 'Brighton',
       event: 'concedes',
       period: 'ft',
+      direction: 'not',
       streak: 4,
       lastMatch: new Date(2026, 9, 18),
     },
   ]
   expect(rankByRarity(rows, rates).map((r) => r.team)).toEqual(['Brighton', 'Ajax'])
+})
+
+test('a run of a rare event is rarer than a run of a common one', () => {
+  // At direction yes the run is of the event itself: five 0-0s beat five matches with a goal.
+  const rates = baseRates(i1, 'ft', 'all')
+  const row = (event: EventId): Ritardo => ({
+    div: 'I1',
+    team: 'Lecce',
+    event,
+    period: 'ft',
+    direction: 'yes',
+    streak: 5,
+    lastMatch: new Date(2026, 9, 18),
+  })
+  expect(rankByRarity([row('over05'), row('under05')], rates).map((r) => r.event)).toEqual([
+    'under05',
+    'over05',
+  ])
+})
+
+test('the same streak flips rank when the direction flips', () => {
+  // Conceding is frequent, so five clean sheets are exceptional and five concessions are not.
+  const rates = baseRates(i1, 'ft', 'all')
+  const row = (direction: Direction): Ritardo => ({
+    div: 'I1',
+    team: 'Como',
+    event: 'concedes',
+    period: 'ft',
+    direction,
+    streak: 5,
+    lastMatch: new Date(2026, 9, 18),
+  })
+  expect(rankByRarity([row('yes'), row('not')], rates).map((r) => r.direction)).toEqual([
+    'not',
+    'yes',
+  ])
 })
 
 test('oneIn is finite for every row even on a one-match season', () => {
@@ -61,6 +99,7 @@ test('oneIn is finite for every row even on a one-match season', () => {
   const rows = computeRitardi(one, {
     events: EVENTS.map((e) => e.id),
     period: 'ft',
+    direction: 'not',
     venue: 'all',
     min: 1,
   })
@@ -69,7 +108,13 @@ test('oneIn is finite for every row even on a one-match season', () => {
 
 test('does not mutate the rows it is given', () => {
   const rates = baseRates(i1, 'ft', 'all')
-  const rows = computeRitardi(i1, { events: ['draw'], period: 'ft', venue: 'all', min: 1 })
+  const rows = computeRitardi(i1, {
+    events: ['draw'],
+    period: 'ft',
+    direction: 'not',
+    venue: 'all',
+    min: 1,
+  })
   const before = [...rows]
   rankByRarity(rows, rates)
   expect(rows).toEqual(before)
@@ -80,6 +125,7 @@ test('real Serie A data: no U0.5 does not dominate the top of the ranking', () =
   const rows = computeRitardi(i1, {
     events: EVENTS.map((e) => e.id),
     period: 'ft',
+    direction: 'not',
     venue: 'all',
     min: 4,
   })
