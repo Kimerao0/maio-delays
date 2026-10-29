@@ -2,6 +2,7 @@
 
 import { cn } from 'cn'
 import Link, { useLinkStatus } from 'next/link'
+import { remember } from '@/lib/remember'
 
 const LINK = 'rounded-xs outline-offset-2 focus-visible:outline-2 focus-visible:outline-figure'
 
@@ -23,7 +24,7 @@ type SortLinkProps = { href: string; label: string; arrow: string | null }
 
 export function SortLink({ href, label, arrow }: SortLinkProps) {
   return (
-    <Link href={href} scroll={false} className={LINK}>
+    <Link href={href} scroll={false} onNavigate={() => remember(href)} className={LINK}>
       <Label label={label} arrow={arrow} />
     </Link>
   )

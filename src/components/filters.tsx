@@ -23,9 +23,12 @@ import { EVENTS, type EventId, eventLabel } from '@/lib/events'
 import { LEAGUES } from '@/lib/leagues'
 import { MAX_RARITY, MAX_STREAK, MIN_RARITY, MIN_STREAK, type Query, toQuery } from '@/lib/query'
 import { compactOneIn, parseOneIn } from '@/lib/rarity'
+import { canonical, forget, remember } from '@/lib/remember'
 import { unitFor, type Venue } from '@/lib/streaks'
 
 const ALL = 'tutti'
+
+const ALL_DIVS = LEAGUES.map((league) => league.div)
 
 // A burst of taps on the stepper has to settle into one navigation, not one per tap.
 const IDLE_MS = 400
@@ -79,6 +82,8 @@ const ITEM = 'min-h-11 text-figure focus:bg-rule data-highlighted:bg-rule'
 // Selected reads as figure, unselected as quiet: the state is carried by colour, never by a fill.
 const TOGGLE = 'h-11 flex-1 text-[13px] text-quiet aria-pressed:text-figure disabled:opacity-100'
 
+const PICK = 'h-11 flex-1 text-[13px] text-figure disabled:text-quiet'
+
 // Same rule for the bound: a stepper that cannot go further reads quiet, and never fills.
 const STEP = 'h-11 w-[30px] shrink-0 text-[15px] text-figure disabled:text-quiet'
 
@@ -86,6 +91,9 @@ const VALUE = 'h-11 min-w-0 flex-1 text-center text-[15px] text-figure tabular-n
 
 // The native spinners both duplicate the buttons and eat the width the value needs.
 const NO_SPINNER = '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none'
+
+const RESET =
+  'h-11 self-center px-2 text-[13px] text-quiet underline underline-offset-4 disabled:opacity-100'
 
 // The event reads bare here: whether the run is of it happening or not is the direction toggle's.
 function selectedEventLabel(value: string | null): string {
@@ -115,6 +123,8 @@ function rungBelow(value: number): number {
 
 function leaguesLabel(divs: readonly string[]): string {
   if (divs.length === LEAGUES.length) return 'tutte'
+  // The draft can be emptied while the popup is open, and a blank trigger reads as broken.
+  if (divs.length === 0) return 'nessuna'
   return LEAGUES.filter((league) => divs.includes(league.div))
     .map((league) => league.tag)
     .join(' ')
@@ -139,7 +149,10 @@ function legendOf(name: string): string | undefined {
   return name
 }
 
-// Stands in while the request-time query resolves: same frames, same labels, same geometry.
+// Stands in while the request-time query resolves: same frames, same labels, same geometry. No
+// slot for `azzera`: it can still appear after the skeleton, since a returning user lands on a
+// narrowed URL, but it is last in the bar on a row that already exists for the rarity stepper, so it
+// moves nothing above it.
 export function FiltersSkeleton() {
   return (
     <div aria-hidden="true" className={BAR}>
@@ -324,6 +337,92 @@ function RarityStepper({ value, label, pending, onCommit }: StepperProps) {
   )
 }
 
+type LeagueSelectProps = { divs: string[]; pending: boolean; onCommit: (divs: string[]) => void }
+
+// base-ui hands the draft back in the order the items were tapped, not in the canonical one.
+function sameLeagues(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false
+  const picked = new Set(b)
+  return a.every((div) => picked.has(div))
+}
+
+// Every tap would otherwise be its own navigation, and an empty selection reads back as all the
+// leagues: the choice is local while the popup is open and commits once, when it closes for any
+// reason but Escape, which cancels it. Keyed on the query's own divs by the caller, so Back and a
+// server answer both reset it.
+function LeagueSelect({ divs, pending, onCommit }: LeagueSelectProps) {
+  const [draft, setDraft] = useState(divs)
+
+  function close(): void {
+    // Nothing picked is a draft he abandoned, not a filter: the table stays as it was.
+    if (draft.length === 0) {
+      setDraft(divs)
+      return
+    }
+    if (sameLeagues(draft, divs)) return
+    onCommit(draft)
+  }
+
+  return (
+    <Field label="leghe">
+      <Select
+        multiple
+        disabled={pending}
+        value={draft}
+        // base-ui calls this with `(value, eventDetails)`, and a bare setter would read a second
+        // argument as a functional update if the value were ever one.
+        onValueChange={(next: string[]) => setDraft(next)}
+        onOpenChange={(open, details) => {
+          if (open) return
+          // Escape is a cancel everywhere else on the page, so it cannot be the one gesture that
+          // applies.
+          if (details.reason === 'escape-key') {
+            setDraft(divs)
+            return
+          }
+          close()
+        }}
+      >
+        <SelectTrigger aria-label="leghe" className={cn(CONTROL, FOCUS, WIDTHS.leghe)}>
+          <SelectValue>{(value: string[]) => leaguesLabel(value)}</SelectValue>
+        </SelectTrigger>
+        <SelectContent
+          className={POPUP}
+          header={
+            <div className="flex items-center gap-1 border-b border-rule px-1">
+              <button
+                type="button"
+                disabled={draft.length === LEAGUES.length}
+                onClick={() => setDraft(ALL_DIVS)}
+                className={cn(PICK, FOCUS)}
+              >
+                tutte
+              </button>
+              <span aria-hidden="true" className="text-quiet">
+                ·
+              </span>
+              <button
+                type="button"
+                disabled={draft.length === 0}
+                onClick={() => setDraft([])}
+                className={cn(PICK, FOCUS)}
+              >
+                nessuna
+              </button>
+            </div>
+          }
+        >
+          {LEAGUES.map((league) => (
+            <SelectItem key={league.div} value={league.div} className={ITEM}>
+              {league.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  )
+}
+
 export function Filters({ query }: { query: Query }) {
   const searchParams = useSearchParams()
   const { pending, navigate } = useFilterNav()
@@ -338,7 +437,15 @@ export function Filters({ query }: { query: Query }) {
   }
 
   function apply(next: Query): void {
-    navigate(`?${withSort(toQuery(next))}`)
+    const search = withSort(toQuery(next)).toString()
+    remember(search)
+    navigate(`?${search}`)
+  }
+
+  function reset(): void {
+    // The cookie goes first, or the proxy reads it back and bounces the bare URL to it.
+    forget()
+    navigate('/')
   }
 
   function applyEvent(value: string | null): void {
@@ -359,6 +466,7 @@ export function Filters({ query }: { query: Query }) {
 
   const selectedEvent = query.events.length === EVENTS.length ? ALL : query.events[0]
   const minLabel = `${unitFor(query.venue)} minimo`
+  const narrowed = canonical(withSort(toQuery(query)).toString()) !== ''
 
   return (
     <div
@@ -444,25 +552,12 @@ export function Filters({ query }: { query: Query }) {
         </Select>
       </Field>
 
-      <Field label="leghe">
-        <Select
-          multiple
-          disabled={pending}
-          value={query.divs}
-          onValueChange={(divs) => apply({ ...query, divs })}
-        >
-          <SelectTrigger aria-label="leghe" className={cn(CONTROL, FOCUS, WIDTHS.leghe)}>
-            <SelectValue>{(value: string[]) => leaguesLabel(value)}</SelectValue>
-          </SelectTrigger>
-          <SelectContent className={POPUP}>
-            {LEAGUES.map((league) => (
-              <SelectItem key={league.div} value={league.div} className={ITEM}>
-                {league.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
+      <LeagueSelect
+        key={query.divs.join(',')}
+        divs={query.divs}
+        pending={pending}
+        onCommit={(divs) => apply({ ...query, divs })}
+      />
 
       <MinStepper
         key={query.min}
@@ -479,6 +574,12 @@ export function Filters({ query }: { query: Query }) {
         pending={pending}
         onCommit={(rarity) => apply({ ...query, rarity })}
       />
+
+      {narrowed && (
+        <button type="button" disabled={pending} onClick={reset} className={cn(RESET, FOCUS)}>
+          azzera
+        </button>
+      )}
     </div>
   )
 }

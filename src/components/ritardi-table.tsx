@@ -13,27 +13,11 @@ import {
 import { eventLabel, eventShort, type Period } from '@/lib/events'
 import { leagueByDiv } from '@/lib/leagues'
 import type { Fixture, Match } from '@/lib/matches'
-import { type Query, type RawSearchParams, toQuery } from '@/lib/query'
+import { type Query, toQuery } from '@/lib/query'
 import { compactOneIn, type Ranked } from '@/lib/rarity'
+import { DEFAULT_DIR, type Dir, type Sort, type SortKey } from '@/lib/sort'
 import { nextFixture } from '@/lib/source'
 import { runKey } from '@/lib/streaks'
-
-type Dir = 'asc' | 'desc'
-
-export type SortKey = 'raro' | 'da' | 'squadra' | 'evento' | 'lega' | 'ultima'
-export type Sort = { key: SortKey; dir: Dir }
-
-const SORT_KEYS: readonly SortKey[] = ['raro', 'da', 'squadra', 'evento', 'lega', 'ultima']
-
-// Numeric columns read biggest-first, text columns A-Z, until the header is clicked again.
-const DEFAULT_DIR: Record<SortKey, Dir> = {
-  raro: 'desc',
-  da: 'desc',
-  squadra: 'asc',
-  evento: 'asc',
-  lega: 'asc',
-  ultima: 'desc',
-}
 
 const ARIA_SORT: Record<Dir, 'ascending' | 'descending'> = {
   asc: 'ascending',
@@ -91,16 +75,6 @@ function sideMark(fixture: Fixture, team: string): string {
 function nextLabel(fixture: Fixture | null, team: string): string {
   if (!fixture) return '—'
   return `${opponentOf(fixture, team)} (${sideMark(fixture, team)}) ${DAY.format(fixture.date)}`
-}
-
-function readDir(raw: string | string[] | undefined, key: SortKey): Dir {
-  if (raw === 'asc' || raw === 'desc') return raw
-  return DEFAULT_DIR[key]
-}
-
-export function parseSort(sp: RawSearchParams): Sort {
-  const key = SORT_KEYS.find((candidate) => candidate === sp.sort) ?? 'raro'
-  return { key, dir: readDir(sp.dir, key) }
 }
 
 function nextDir(column: SortKey, sort: Sort): Dir {
