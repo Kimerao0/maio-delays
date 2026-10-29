@@ -123,12 +123,26 @@ export function HowItWorks() {
                   consecutive fra loro: una vittoria in trasferta fra due pareggi in casa non
                   interrompe una sequenza casalinga.
                 </Entry>
-                <Entry term="leghe">quali campionati entrano nel conto.</Entry>
+                <Entry term="leghe">
+                  quali campionati entrano nel conto. In cima alla tendina <Term>tutte</Term> li
+                  rimette tutti, <Term>nessuna</Term> svuota l’elenco per sceglierne solo qualcuno.
+                  La scelta vale quando la tendina si chiude; chiudendola senza averne scelto
+                  nessuno, la tabella resta com’era.
+                </Entry>
                 <Entry term="turni minimo">la lunghezza minima perché una riga compaia.</Entry>
                 <Entry term="raro almeno">
                   la soglia sulla colonna <Term>1 SU</Term>, sotto la quale le righe restano fuori.
                 </Entry>
+                <Entry term="azzera">
+                  torna a tutti i filtri e all’ordine di partenza e dimentica la scelta salvata. Il
+                  pulsante compare solo quando c’è qualcosa da azzerare.
+                </Entry>
               </ul>
+              <p className={BODY}>
+                I filtri e l’ordine restano salvati su questo telefono: riaprendo la pagina la
+                tabella è come l’hai lasciata. Un link con dei filtri ricevuto da qualcun altro
+                mostra invece quello che vedeva chi l’ha mandato.
+              </p>
             </Section>
 
             <Section title="come si calcola 1 su">

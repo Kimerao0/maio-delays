@@ -58,6 +58,7 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
+  header,
   side = "bottom",
   sideOffset = 4,
   align = "center",
@@ -68,7 +69,23 @@ function SelectContent({
   Pick<
     SelectPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
-  >) {
+  > & { header?: React.ReactNode }) {
+  // The list is the scroller base-ui sizes: with `alignItemWithTrigger` it gives the popup
+  // `height: 100%` of the positioner and the list `max-height: 100%`, read against that same box.
+  // A header is a sibling above it, so without a column layout the list keeps the full height and
+  // its foot falls outside the popup — a second scrollbar, and a `scrollTop` the list can no
+  // longer reach, which is what aligns the selected item with the trigger. Flexing it takes the
+  // header's height off the list instead.
+  const scroller = (
+    <>
+      <SelectScrollUpButton />
+      <SelectPrimitive.List className={header ? "min-h-0 flex-1 overflow-y-auto" : undefined}>
+        {children}
+      </SelectPrimitive.List>
+      <SelectScrollDownButton />
+    </>
+  )
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner
@@ -82,12 +99,21 @@ function SelectContent({
         <SelectPrimitive.Popup
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
-          className={cn("relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className )}
+          className={cn("relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", header && "flex flex-col", className )}
           {...props}
         >
-          <SelectScrollUpButton />
-          <SelectPrimitive.List>{children}</SelectPrimitive.List>
-          <SelectScrollDownButton />
+          {header}
+          {/* Both scroll arrows are `position: absolute` pinned to the popup's own edges, so with
+              a header the up arrow paints over it rather than over the first item. This box gives
+              them the scrolled region as their containing block, and — being the items'
+              `offsetParent` — keeps the arrow's hover-to-scroll maths in the list's own
+              coordinates. base-ui reaches the list and the arrows through the store, never as
+              children of the popup, so the extra level is invisible to it. */}
+          {header ? (
+            <div className="relative flex min-h-0 flex-1 flex-col">{scroller}</div>
+          ) : (
+            scroller
+          )}
         </SelectPrimitive.Popup>
       </SelectPrimitive.Positioner>
     </SelectPrimitive.Portal>
